@@ -21,6 +21,8 @@ class TopCmd(object):
             ('connect', '<controller> [<name>]', self.connect),
             ('disconnect', '<controller>', self.disconnect),
             ('monitor', '<controllers> <period>', self.monitor),
+            ('temps', '', self.temps),
+            ('temps', 'status', self.temps),
         ]
 
         # Define typed command arguments for the above commands.
@@ -42,7 +44,7 @@ class TopCmd(object):
         period = cmd.cmd.keywords['period'].values[0]
         controllers = cmd.cmd.keywords['controllers'].values
 
-        knownControllers = []
+        knownControllers = ['temps']
         for c in self.actor.config.get(self.actor.name, 'controllers').split(','):
             c = c.strip()
             knownControllers.append(c)
@@ -109,14 +111,20 @@ class TopCmd(object):
 
         self.actor.sendVersionKey(cmd)
         
-        cmd.inform('text=%s' % ("Present!"))
-        cmd.inform('text="monitors: %s"' % (self.actor.monitors))
-        cmd.inform('text="config id=0x%08x %r"' % (id(self.actor.config),
-                                                   self.actor.config.sections()))
+        # cmd.inform('text="monitors: %s"' % (self.actor.monitors))
 
         if 'all' in cmd.cmd.keywords:
             for c in self.actor.controllers:
                 self.actor.callCommand("%s status" % (c))
-            
+
+        self.temps(cmd, doFinish=False)
         cmd.finish(self.controllerKey())
 
+    def temps(self, cmd, doFinish=True):
+        """Report CCD and preamp temperatures. """
+        
+        ret = self.actor.fee.getTemps()
+        cmd.inform('ccdTemps=%0.2f,%0.2f,%0.2f' % (ret[1], ret[2], ret[3]))
+        if doFinish:
+            cmd.finish()
+            

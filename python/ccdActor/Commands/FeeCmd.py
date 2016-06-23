@@ -16,9 +16,8 @@ class FeeCmd(object):
         # passed a single argument, the parsed and typed command.
         #
         self.vocab = [
-            ('raw', '@raw', self.raw),
+            ('fee', '@raw', self.raw),
             # ('mode', '@(erase|read|integrate)', self.mode),
-            ('temps', '', self.temps),
         ]
 
         # Define typed command arguments for the above commands.
@@ -30,13 +29,6 @@ class FeeCmd(object):
 
         cmdTxt = cmd.cmd.keywords['raw'].values[0]
         
-        ret = self.actor.fee.rawCmd(cmdTxt, cmd)
+        ret = self.actor.fee.getRaw(cmdTxt)
+	cmd.finish('text=%s' % (qstr('returned: %s' % (ret))))  
 
-    def temps(self, cmd, doFinish=True):
-        """Report CCD and preamp temperatures. """
-        
-        ret = self.actor.fee.getTemps()
-        cmd.inform('ccdTemps=%0.2f,%0.2f,%0.2f' % (ret[1], ret[2], ret[3]))
-        if doFinish:
-            cmd.finish()
-            
