@@ -2,25 +2,37 @@
 
 import argparse
 import logging
+import os
+import socket
 
 from twisted.internet import reactor
 
 import actorcore.ICC
 
+def ourIdent(hostname=None):
+    pass
+
 class OurActor(actorcore.ICC.ICC):
     def __init__(self, name,
                  productName=None, configFile=None,
-                 modelNames=(),
                  logLevel=30):
 
         """ Setup an Actor instance. See help for actorcore.Actor for details. """
         
         # This sets up the connections to/from the hub, the logger, and the twisted reactor.
         #
+        cam = name.split('_')[-1]
+        spec = 'sm'+cam[-1]
+        idDict = dict(cam=cam, spec=spec)
+        models = [m % idDict for m in ('ccd_%(cam)s', 'xcu_%(cam)s',
+#                                       'rexm_%(spec)s', 'hexaslit_%(spec)s',
+#                                       'enu_%(spec)s', 'shutbia_%(spec)s',
+                                       'enu',
+        )]
         actorcore.ICC.ICC.__init__(self, name, 
                                    productName=productName, 
                                    configFile=configFile,
-                                   modelNames=modelNames)
+                                   modelNames=models)
         self.logger.setLevel(logLevel)
         self.everConnected = False
 
@@ -35,6 +47,12 @@ class OurActor(actorcore.ICC.ICC):
     def fpga(self):
         return self.controllers['fpga']
 
+    def hostIds(self):
+        hostname = socket.gethostname()
+        hostname = os.path.splitext(hostname)[0]
+        _, hostid = hostname.split('-')
+        return hostid[0], int(hostid[1])
+        
     def connectionMade(self):
         if self.everConnected is False:
             logging.info("Attaching all controllers...")
