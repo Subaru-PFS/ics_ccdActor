@@ -44,8 +44,8 @@ class OurActor(actorcore.ICC.ICC):
         return self.controllers['fee']
 
     @property
-    def fpga(self):
-        return self.controllers['fpga']
+    def ccd(self):
+        return self.controllers['ccd']
 
     def hostIds(self):
         hostname = socket.gethostname()
