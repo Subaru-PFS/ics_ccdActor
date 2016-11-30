@@ -39,6 +39,7 @@ class CcdCmd(object):
     def wipe(self, cmd):
         """ Wipe/flush the detector and put it in integration mode. """
 
+        cmd.inform('exposureState="wiping"')
         ccdFuncs.wipe(self.ccd, feeControl=self.fee)
         cmd.inform('exposureState="integrating"')
 	cmd.finish('text="wiped!"')
