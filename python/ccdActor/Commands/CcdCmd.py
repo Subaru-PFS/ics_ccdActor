@@ -21,7 +21,7 @@ class CcdCmd(object):
         #
         self.vocab = [
             ('wipe', '', self.wipe),
-            ('read', '', self.read),
+            ('read', '@(bias|dark|flat|arc|object)', self.read),
         ]
 
         # Define typed command arguments for the above commands.
