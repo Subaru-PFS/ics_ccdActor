@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import logging
 
 import xcu_fpga.fee.feeControl as feeControl
+reload(feeControl)
 
 class fee(feeControl.FeeControl):
     def __init__(self, actor, name,

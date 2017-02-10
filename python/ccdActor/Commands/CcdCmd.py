@@ -42,7 +42,7 @@ class CcdCmd(object):
         cmd.inform('exposureState="wiping"')
         ccdFuncs.wipe(self.ccd, feeControl=self.fee)
         cmd.inform('exposureState="integrating"')
-	cmd.finish('text="wiped!"')
+        cmd.finish('text="wiped!"')
 
     def read(self, cmd):
         """ Readout the detector and put it in idle mode. """
@@ -65,7 +65,7 @@ class CcdCmd(object):
         rootDir, dateDir = os.path.split(dirname)
 
         cmd.inform('exposureState="idle"')        
-	cmd.finish('filepath=%s,%s,%s' % (qstr(rootDir),
+        cmd.finish('filepath=%s,%s,%s' % (qstr(rootDir),
                                           qstr(dateDir),
                                           qstr(filename)))
         
