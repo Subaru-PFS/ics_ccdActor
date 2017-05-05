@@ -100,6 +100,8 @@ class OurActor(actorcore.ICC.ICC):
 
         self.monitors = dict()
         self.statusLoopCB = self.statusLoop
+
+        self.exposure = None
         
     @property
     def fee(self):
