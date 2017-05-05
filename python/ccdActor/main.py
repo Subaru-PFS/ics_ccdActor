@@ -30,7 +30,7 @@ class SpectroIds(object):
         
         if dewarName[0] not in self.validArms:
             raise RuntimeError('arm (%s) must one of: %s' % (dewarName[0], self.validArms))
-        if int(dewarName[1]) not in (1,2,3,4,5,6,7,8,9):
+        if dewarName[1] not in ('1','2','3','4','5','6','7','8','9'):
             raise RuntimeError('spectrograph number (%s) must be in 1..9' % (dewarName[1]))
         self.dewarName = dewarName
         
@@ -42,6 +42,9 @@ class SpectroIds(object):
             raise RuntimeError('site (%s) must one of: %s' % (site, self.validSites))
         self.site = site
 
+    def __str__(self):
+        return "SpectroIds(cam=%s arm=%s spec=%s)" % (self.cam, self.arm, self.specModule)
+        
     @property
     def cam(self):
         return self.dewarName
