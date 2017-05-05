@@ -86,7 +86,7 @@ class OurActor(actorcore.ICC.ICC):
         models = [m % idDict for m in ('ccd_%(cam)s', 'xcu_%(cam)s',
 #                                      'rexm_%(spec)s', 'hexaslit_%(spec)s',
 #                                      'enu_%(spec)s', 'shutbia_%(spec)s',
-                                       'enu',
+                                       'enu', 'dcb',
         )]
         actorcore.ICC.ICC.__init__(self, name, 
                                    productName=productName, 
