@@ -1,6 +1,7 @@
 import logging
 
 import fpga.ccd
+reload(fpga.ccd)
 
 class ccd(fpga.ccd.CCD):
     def __init__(self, actor, name,
