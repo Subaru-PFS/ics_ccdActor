@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+import os.path
+import time
+
 import opscore.protocols.keys as keys
 import opscore.protocols.types as types
 from opscore.utility.qstr import qstr
@@ -17,16 +20,21 @@ class FeeCmd(object):
         #
         self.vocab = [
             ('fee', '@raw', self.raw),
+            ('fee', 'download <pathname>', self.download),
             ('fee', 'configure', self.configure),
             ('fee', 'status [@(serial)] [@(temps)] [@(bias)] [@(voltage)] [@(offset)] [@(preset)]', self.status),
             ('fee', 'test1', self.test1),
+            ('feeTimes', '@raw', self.times),
             ('fee', 'setSerials [<ADC>] [<PA0>] [<CCD0>] [<CCD1>]', self.setSerials),
-            
-            # ('mode', '@(erase|read|integrate)', self.mode),
+            ('fee', '@(setMode) @(idle|wipe|erase|expose|read)', self.setMode),
         ]
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("ccd_fee", (1, 1),
+                                        keys.Key("pathname", types.String(),
+                                                 help='the pathname of a .hex firmware file'),
+                                        keys.Key("cnt", types.Int(),
+                                                 help='a count'),
                                         keys.Key("ADC", types.Int(),
                                                  help='the ADC serial number'),
                                         keys.Key("PA0", types.Int(),
@@ -41,8 +49,8 @@ class FeeCmd(object):
         """ Send a raw FEE command. """
 
         cmdTxt = cmd.cmd.keywords['raw'].values[0]
-        
-        ret = self.actor.fee.getRaw(cmdTxt)
+
+        ret = self.actor.fee.sendCommandStr(cmdTxt, noTilde=(cmdTxt in {'reset'}))
         cmd.finish('text=%s' % (qstr('returned: %s' % (ret))))  
 
     def _status(self, cmd, keys):
@@ -57,7 +65,7 @@ class FeeCmd(object):
                 
             cmd.inform('%s=%s' % (k,v))
         
-    def status(self, cmd):
+    def status(self, cmd, doFinish=True):
         """ Fetch some status keys. All of them by default. """
 
         cmdKeys = cmd.cmd.keywords
@@ -73,6 +81,20 @@ class FeeCmd(object):
             keys = self.actor.fee.getAllStatus()
             self._status(cmd, keys)
 
+        if doFinish:
+            cmd.finish()
+
+    def setMode(self, cmd):
+        cmdKeys = cmd.cmd.keywords
+
+        allModes = {'erase', 'idle', 'wipe', 'expose', 'read'}
+        mode = None
+        for m in allModes:
+            if m in cmdKeys:
+                mode = m
+                break
+
+        self.actor.fee.setMode(mode)
         cmd.finish()
         
     def test1(self, cmd):
@@ -91,6 +113,19 @@ class FeeCmd(object):
         
         cmd.finish()
         
+    def times(self, cmd):
+        """ Test core parts of the FEE. """
+
+        cmdTxt = cmd.cmd.keywords['raw'].values[0]
+        cnt = 10 # cmd.cmd.keywords['cnt'].values[0]
+
+        t0 = time.time()
+        for i in range(cnt):
+            ret = self.actor.fee.getRaw(cmdTxt)
+        t1 = time.time()
+
+        cmd.finish('text="total=%0.2fs, per=%0.04fs"' % (t1-t0, (t1-t0)/cnt))
+        
     def configure(self, cmd):
         """ Calibrate FEE DACs and load mode voltages. """
 
@@ -101,6 +136,25 @@ class FeeCmd(object):
         cmd.inform('text="fee calibrated..."')
 
         self.status(cmd)
+
+    def download(self, cmd):
+        """ Download firmware. """
+
+        fee = self.actor.fee
+        path = cmd.cmd.keywords['pathname'].values[0]
+
+        if not os.path.exists(path):
+            cmd.fail('text="firmware file cannot be opened (%s)"' % (path))
+            return
+        if os.path.splitext(path)[1] != '.hex':
+            cmd.fail('text="firmware file must be a .hex file (%s)"' % (path))
+            return
+
+        fee.sendImage(path, sendReset=True, doWait=False)
+        keys = self.actor.fee.sendCommandStr('gr')
+        self._status(cmd, keys)
+        
+        cmd.finish('')
 
     def setSerials(self, cmd):
         """ Set one or more serial numbers for the DAQ chain. """
