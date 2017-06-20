@@ -1,16 +1,23 @@
 #!/usr/bin/env python
 
-import os
+from __future__ import division, absolute_import, print_function
+
+import functools
 
 import opscore.protocols.keys as keys
 import opscore.protocols.types as types
-from opscore.utility.qstr import qstr
 
 import fpga.ccdFuncs as ccdFuncs
 reload(ccdFuncs)
 
-class CcdCmd(object):
+import astropy.io.fits as pyfits
 
+import Commands.exposure as exposure
+reload(exposure)
+    
+class CcdCmd(object):
+    imTypes = {'bias', 'dark', 'flat', 'arc', 'object'}
+    
     def __init__(self, actor):
         # This lets us access the rest of the actor.
         self.actor = actor
@@ -22,8 +29,14 @@ class CcdCmd(object):
         #
         self.vocab = [
             ('wipe', '[<nrows>] [<ncols>]', self.wipe),
-            ('read', '@(bias|dark|flat|arc|object|junk) [<nrows>] [<ncols>]', self.read),
+            ('read', '[@(bias|dark|flat|arc|object|junk)] [<nrows>] [<ncols>] [<exptime>] [<obstime>] [<comment>] [@nope]',
+             self.read),
             ('clock','[<nrows>] <ncols>', self.clock),
+            ('clearExposure', '', self.clearExposure),
+            ('expose', '<nbias>', self.exposeBiases),
+            ('expose', '<darks>', self.exposeDarks),
+            ('setOffset', '<offset> <value>', self.setOffset),
+            ('setOffsets', '<filename>', self.setOffsets),
         ]
 
         # Define typed command arguments for the above commands.
@@ -32,13 +45,35 @@ class CcdCmd(object):
                                                  help='Number of rows to readout'),
                                         keys.Key("ncols", types.Int(),
                                                  help='Number of amp columns to readout'),
-                                        
+                                        keys.Key("filename", types.String(),
+                                                 help='the name of a file to load from.'),
+                                        keys.Key("obstime", types.String(),
+                                                 help='official DATE-OBS string'),
+                                        keys.Key("exptime", types.Float(),
+                                                 help='official EXPTIME'),
+                                        keys.Key("comment", types.String(),
+                                                 help='a comment to add.'),
+                                        keys.Key("nbias", types.Int(),
+                                                 help='number of biases to take'),
+                                        keys.Key("darks", types.Float()*(1,),
+                                                 help='list of dark times to take'),
+                                        keys.Key("offset",
+                                                 types.Int(),
+                                                 types.Int(),
+                                                 types.String(),
+                                                 help='offset value'),
+                                        keys.Key("value", types.Float(),
+                                                 help='offset value'),
         )
 
         self.exposureState = 'idle'
         self.nrows = None
         self.ncols = None
-        
+
+        self.actor.exposure = None
+
+        self.initCallbacks()
+
     @property
     def ccd(self):
         return self.actor.ccd
@@ -46,8 +81,34 @@ class CcdCmd(object):
     @property
     def fee(self):
         return self.actor.fee
+
+    def initCallbacks(self):
+        """ """
+
+        pass
+
+    def _setExposure(self, cmd, exp, doForce=False):
+        if self.actor.exposure is not None:
+            if not doForce:
+                raise exposure.ExposureIsActive('an exposure is already active: %s' % (self.actor.exposure))
+            self.actor.exposure.abort(cmd)
+        self.actor.exposure = exp
+
+    def _getExposure(self, cmd):
+        if self.actor.exposure is None:
+            raise exposure.ExposureIsActive('no exposure is active!!')
+            
+        return self.actor.exposure
+
+    def closeoutExposure(self, cmd):
+        self.actor.exposure = None
     
-    def wipe(self, cmd, doFinish=True, nrows=None, ncols=None):
+    def clearExposure(self, cmd):
+        cmd.warn('text="clearing running/broken exposure: %s"' % (self.actor.exposure))
+        self.closeoutExposure(cmd)
+        cmd.finish()
+
+    def wipe(self, cmd, nrows=None, ncols=None, doFinish=True):
         """ Wipe/flush the detector and put it in integration mode. """
 
         cmdKeys = cmd.cmd.keywords
@@ -58,11 +119,15 @@ class CcdCmd(object):
             ncols = cmdKeys['ncols'].values[0] if 'ncols' in cmdKeys else None
         self.nrows = nrows 
         self.ncols = ncols
-        
-        cmd.inform('exposureState="wiping"')
-        ccdFduncs.wipe(self.ccd, feeControl=self.fee,
-                      nrows=self.nrows, ncols=self.ncols)
-        cmd.inform('exposureState="integrating"')
+
+        ## NOT using nrows, ncols yet!
+        exp = exposure.Exposure(self.actor, None, 0,
+                                self.ccd, self.fee,
+                                self.actor.bcast)
+        self._setExposure(cmd, exp)
+
+        exp.wipe(cmd=cmd)
+
         if doFinish:
             cmd.finish('text="wiped!"')
 
@@ -83,7 +148,8 @@ class CcdCmd(object):
         else:
             cmd.inform('text="clocking!"')
 
-    def read(self, cmd, doFinish=True, nrows=None, ncols=None,
+    def read(self, cmd, imType=None, doFinish=True,
+             nrows=None, ncols=None,
              doModes=True, doFeeCards=True):
         """ Readout the detector and put it in idle mode. """
 
@@ -99,56 +165,104 @@ class CcdCmd(object):
             if ncols is None:
                 ncols = self.ncols
 
-        def rowCB(line, image, errorMsg="OK", cmd=cmd, **kwargs):
-            imageHeight = image.shape[0]
-            everyNRows = 250
-            if (line % everyNRows != 0) and (line < imageHeight-1):
-                return
-            cmd.inform('readRows=%d,%d' % (line, imageHeight))
-            
-        cmd.inform('exposureState="reading"')
-        im, filepath = ccdFuncs.readout(imtype, self.ccd, feeControl=self.fee,
-                                        nrows=nrows, ncols=ncols,
-                                        doModes=doModes, doFeeCards=doFeeCards,
-                                        rowStatsFunc=rowCB)
+        if imtype is None:
+            imtype = 'test'
+            for t in self.imTypes:
+                if t in cmdKeys:
+                    imtype = t
 
-        dirname, filename = os.path.split(filepath)
-        rootDir, dateDir = os.path.split(dirname)
+        doRun = 'nope' not in cmdKeys
+        comment = cmdKeys['comment'].values[0] if 'comment' in cmdKeys else ''
+        exptime = cmdKeys['exptime'].values[0] if 'exptime' in cmdKeys else None
 
-        cmd.inform('exposureState="idle"')
-        if doFinish:
-            lastFunc = cmd.finish
-        else:
-            lastFunc = cmd.inform
-        lastFunc('filepath=%s,%s,%s' % (qstr(rootDir),
-                                        qstr(dateDir),
-                                        qstr(filename)))
+        exp = self._getExposure(cmd)
+        exp.readout(imtype, exptime, comment=comment, doRun=doRun, cmd=cmd)
+        self.closeoutExposure(cmd=cmd)
         
-    def test1(self, cmd):
-        """ Readout the detector and put it in idle mode. """
+        if doFinish:
+            cmd.finish()
+
+    def _nextExposure(self, cmd, runningExp, exposures, idx):
+        cmd.inform('text="calling for exposure %d of %s"' % (idx+1, exposures))
+        if idx >= len(exposures) or (runningExp is not None and runningExp.pleaseStop):
+            self.closeoutExposure(cmd)
+            cmd.finish()
+            return
+
+        if runningExp is not None and runningExp != self.actor.exposure:
+            cmd.warn('text="abandoning orphan sequence"')
+            cmd.finish()
+            return
+
+        if runningExp == self.actor.exposure:
+            self.closeoutExposure(cmd)
+
+        thisType, thisExpTime, comment = exposures[idx]
+        cmd.inform('text="starting %d of %d: %s, %0.2f sec"' % (idx+1, len(exposures),
+                                                                thisType, thisExpTime))
+        newExp = exposure.Exposure(self.actor, thisType, thisExpTime,
+                                   self.ccd, self.fee, cmd=cmd, comment=comment)
+        self._setExposure(cmd, newExp)
+        newExp.run(callback=functools.partial(self._nextExposure, cmd, newExp, exposures, idx+1))
+
+    def exposeBiases(self, cmd):
+        """ Take a number of complete biases. """
 
         cmdKeys = cmd.cmd.keywords
-        imtype = 'bias'
+        nbias = cmdKeys['nbias'].values[0] if 'nbias' in cmdKeys else 1
+        comment = cmdKeys['comment'].values[0] if 'comment' in cmdKeys else ''
 
-        def rowCB(line, image, errorMsg="OK", cmd=cmd, **kwargs):
-            imageHeight = image.shape[0]
-            everyNRows = 250
-            if (line % everyNRows != 0) and (line < imageHeight-1):
-                return
-            cmd.inform('readRows=%d,%d' % (line, imageHeight))
-            
-        cmd.inform('exposureState="reading"')
-        im, filepath = ccdFuncs.readout(imtype, self.ccd, feeControl=self.fee,
-                                        nrows=10, ncols=100,
-                                        rowStatsFunc=rowCB)
+        expList = [('bias',0,comment) for i in range(nbias)]
+        self._nextExposure(cmd, None, expList, 0)
 
-        dirname, filename = os.path.split(filepath)
-        rootDir, dateDir = os.path.split(dirname)
+    def exposeDarks(self, cmd):
+        """ Take a list of complete darks. """
 
-        cmd.inform('exposureState="idle"')        
-        cmd.finish('filepath=%s,%s,%s' % (qstr(rootDir),
-                                          qstr(dateDir),
-                                          qstr(filename)))
-        
+        cmdKeys = cmd.cmd.keywords
+        darks = cmdKeys['darks'].values
+        comment = cmdKeys['comment'].values[0] if 'comment' in cmdKeys else ''
 
-        
+        expList = []
+        for i, expTime in enumerate(darks):
+            if expTime < 0:
+                cmd.warn('text="NOT taking dark %d of %d: invalid time: %0.2f sec"' % (i+1, len(darks), expTime))
+                continue
+            expType = 'dark' if expTime > 0 else 'bias'
+            expList.append((expType, expTime, comment),)
+
+        self._nextExposure(cmd, None, expList, 0)
+
+    def setOffset(self, cmd):
+        """ Set a single offset. """
+
+        channel,amp,side = cmd.cmd.keywords['offset'].values
+        value = cmd.cmd.keywords['value'].values[0]
+
+        self.actor.fee.setOffsets([channel*4 + amp], [value], leg=side)
+
+        cmd.finish('text="set ch%d/%d/%s = %s"' % (channel, amp, side, value))
+
+    def setOffsets(self, cmd):
+        """ Load the FEE with config saved in the existing image file. """
+
+        filename = cmd.cmd.keywords['filename'].values[0]
+        fee = self.actor.fee
+
+        hdr = pyfits.getheader(filename)
+        plist = []
+        nlist = []
+        clist = []
+        for c in 0,1:
+            for p in range(4):
+                chan = 'offset.ch%d.%d' % (c, p)
+                pval = hdr['%sp' % (chan)]
+                nval = hdr['%sn' % (chan)]
+                clist.append(c*4 + p)
+                plist.append(pval)
+                nlist.append(nval)
+
+        fee.setOffsets(clist, plist, leg='p')
+        fee.setOffsets(clist, nlist, leg='n')
+
+        cmd.finish('text="set!"')
+

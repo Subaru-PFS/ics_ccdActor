@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import division, absolute_import, print_function
+
 import opscore.protocols.keys as keys
 import opscore.protocols.types as types
 from opscore.utility.qstr import qstr
@@ -104,6 +106,7 @@ class TopCmd(object):
         """Query the actor for liveness/happiness."""
 
         cmd.warn("text='I am an empty and fake actor'")
+        cmd.inform('text="ccd=%s"' % (str(self.actor.ids)))
         cmd.finish("text='Present and (probably) well'")
 
     def status(self, cmd):
@@ -116,7 +119,7 @@ class TopCmd(object):
         if 'all' in cmd.cmd.keywords:
             for c in self.actor.controllers:
                 self.actor.callCommand("%s status" % (c))
-
+        cmd.inform('text="exposure=%s"' % (self.actor.exposure))
         self.temps(cmd, doFinish=False)
         cmd.finish(self.controllerKey())
 
