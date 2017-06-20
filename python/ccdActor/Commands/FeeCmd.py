@@ -167,7 +167,7 @@ class FeeCmd(object):
             cmd.fail('text="firmware file must be a .hex file (%s)"' % (path))
             return
 
-        fee.sendImage(path, sendReset=True, doWait=False)
+        fee.sendImage(path, sendReset=False, doWait=False)
         keys = self.actor.fee.sendCommandStr('gr')
         self._status(cmd, keys)
         
