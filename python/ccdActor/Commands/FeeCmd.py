@@ -24,15 +24,20 @@ class FeeCmd(object):
             ('fee', 'configure', self.configure),
             ('fee', 'status [@(serial)] [@(temps)] [@(bias)] [@(voltage)] [@(offset)] [@(preset)]', self.status),
             ('fee', 'test1', self.test1),
+            ('fee', 'setOffsets <n> <p>', self.setOffsets),
             ('feeTimes', '@raw', self.times),
             ('fee', 'setSerials [<ADC>] [<PA0>] [<CCD0>] [<CCD1>]', self.setSerials),
-            ('fee', '@(setMode) @(idle|wipe|erase|expose|read)', self.setMode),
+            ('fee', '@(setMode) @(idle|wipe|erase|expose|read|offset)', self.setMode),
         ]
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("ccd_fee", (1, 1),
                                         keys.Key("pathname", types.String(),
                                                  help='the pathname of a .hex firmware file'),
+                                        keys.Key("n", types.Float()*8,
+                                                 help='N offsets'),
+                                        keys.Key("p", types.Float()*8,
+                                                 help='P offsets'),
                                         keys.Key("cnt", types.Int(),
                                                  help='a count'),
                                         keys.Key("ADC", types.Int(),
@@ -87,7 +92,7 @@ class FeeCmd(object):
     def setMode(self, cmd):
         cmdKeys = cmd.cmd.keywords
 
-        allModes = {'erase', 'idle', 'wipe', 'expose', 'read'}
+        allModes = {'erase', 'idle', 'wipe', 'expose', 'read', 'offset'}
         mode = None
         for m in allModes:
             if m in cmdKeys:
@@ -95,6 +100,18 @@ class FeeCmd(object):
                 break
 
         self.actor.fee.setMode(mode)
+        cmd.finish()
+        
+    def setOffsets(self, cmd):
+        cmdKeys = cmd.cmd.keywords
+
+        nOffsets = cmdKeys['n'].values
+        pOffsets = cmdKeys['p'].values
+        amps = range(8)
+        
+        self.actor.fee.setOffsets(amps, nOffsets, leg='n')
+        self.actor.fee.setOffsets(amps, pOffsets, leg='p')
+
         cmd.finish()
         
     def test1(self, cmd):
