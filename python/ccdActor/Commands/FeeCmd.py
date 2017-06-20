@@ -21,7 +21,7 @@ class FeeCmd(object):
         self.vocab = [
             ('fee', '@raw', self.raw),
             ('fee', 'download <pathname>', self.download),
-            ('fee', 'configure', self.configure),
+            ('fee', 'calibrate', self.calibrate),
             ('fee', 'status [@(serial)] [@(temps)] [@(bias)] [@(voltage)] [@(offset)] [@(preset)]', self.status),
             ('fee', 'test1', self.test1),
             ('fee', 'setOffsets <n> <p>', self.setOffsets),
@@ -143,7 +143,7 @@ class FeeCmd(object):
 
         cmd.finish('text="total=%0.2fs, per=%0.04fs"' % (t1-t0, (t1-t0)/cnt))
         
-    def configure(self, cmd):
+    def calibrate(self, cmd):
         """ Calibrate FEE DACs and load mode voltages. """
 
         fee = self.actor.fee
