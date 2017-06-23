@@ -197,7 +197,8 @@ class Exposure(object):
         dcbCards = (('W_AIT_SRC_Ne',   'ne',    bool, 'AIT Ne lamp'),
                     ('W_AIT_SRC_Xe',   'xenon', bool, 'AIT Xe lamp'),
                     ('W_AIT_SRC_HgAr', 'hgar',  bool, 'AIT HgAr lamp'),
-                    ('W_AIT_SRC_Qth',  'pow_halogen',    bool, 'AIT halogen lamp'),
+                    ('W_AIT_SRC_Qth',  'halogen',    bool, 'AIT halogen lamp'),
+                    ('W_AIT_SRC_Atten',  'attenuator',    int, 'AIT int sphere attenuator value'),
                     ('W_AIT_SRC_diodeFlux',  'photodiode', ftL2cdm2, 'cd/m^2 at photodiode'),
                     )
                     
