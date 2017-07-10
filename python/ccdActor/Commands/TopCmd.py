@@ -127,7 +127,7 @@ class TopCmd(object):
         """Report CCD and preamp temperatures. """
         
         ret = self.actor.fee.getTemps()
-        cmd.inform('ccdTemps=%0.2f,%0.2f,%0.2f' % (ret[1], ret[2], ret[3]))
+        cmd.inform('ccdTemps=%0.2f,%0.2f,%0.2f' % (ret['PA'], ret['ccd0'], ret['ccd1']))
         if doFinish:
             cmd.finish()
             
