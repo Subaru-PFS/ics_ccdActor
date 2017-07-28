@@ -20,7 +20,7 @@ def hostnameId():
 
 class SpectroIds(object):
     validArms = {'b', 'r', 'n'}
-    validSites = {'J','L','X'}
+    validSites = {'J','L','S','X'}
     
     def __init__(self, dewarName=None, site=None):
         if dewarName is None:
@@ -80,23 +80,27 @@ class OurActor(actorcore.ICC.ICC):
             cam = name.split('_')[-1]
         else:
             cam = None
-
         self.ids = SpectroIds(cam, site)
+
+        if name is None:
+            name = 'ccd_%s' % (self.ids.cam)
+            
         # This sets up the connections to/from the hub, the logger, and the twisted reactor.
         #
 
-        idDict = self.ids.idDict
-        models = [m % idDict for m in ('ccd_%(cam)s', 'xcu_%(cam)s',
-#                                      'rexm_%(spec)s', 'hexaslit_%(spec)s',
-#                                      'enu_%(spec)s', 'shutbia_%(spec)s',
-                                       'enu', 'dcb',
-        )]
         actorcore.ICC.ICC.__init__(self, name, 
                                    productName=productName, 
-                                   configFile=configFile,
-                                   modelNames=models)
+                                   configFile=configFile)
         self.logger.setLevel(logLevel)
         self.everConnected = False
+
+        
+        models = [m % self.ids.idDict for m in ('enu', 'dcb',
+                                                'ccd_%(cam)s', 'xcu_%(cam)s',
+                                                # 'rexm_%(spec)s', 'hexaslit_%(spec)s',
+                                                # 'enu_%(spec)s', 'shutbia_%(spec)s',
+        )]
+        self.addModels(models)
 
         self.monitors = dict()
         self.statusLoopCB = self.statusLoop

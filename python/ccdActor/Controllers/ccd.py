@@ -1,13 +1,23 @@
 import logging
 
+from ccdActor.main import SpectroIds
+
 import fpga.ccd
 reload(fpga.ccd)
+
 
 class ccd(fpga.ccd.CCD):
     def __init__(self, actor, name,
                  logLevel=logging.DEBUG):
 
-        fpga.ccd.CCD.__init__(self, actor.ids.specNum, actor.ids.arm, site=actor.ids.site)
+        try:
+            fakeCam = actor.config.get(actor.name, 'fakeCam')
+            actor.bcast.warn('text="setting ccd up on the fake camera: %s"' % (fakeCam))
+            ids = SpectroIds(fakeCam, actor.ids.site)
+        except:
+            ids = actor.ids
+        
+        fpga.ccd.CCD.__init__(self, ids.specNum, ids.arm, site=ids.site)
         self.actor = actor
         self.name = name
         

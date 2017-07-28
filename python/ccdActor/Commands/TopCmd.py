@@ -116,6 +116,9 @@ class TopCmd(object):
         
         # cmd.inform('text="monitors: %s"' % (self.actor.monitors))
 
+        cmd.inform('text="ids=%s"' % (str(self.actor.ids)))
+        cmd.inform('text="models=%s"' % (','.join(self.actor.models.keys())))
+        
         if 'all' in cmd.cmd.keywords:
             for c in self.actor.controllers:
                 self.actor.callCommand("%s status" % (c))
