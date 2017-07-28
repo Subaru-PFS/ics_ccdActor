@@ -92,7 +92,7 @@ class Exposure(object):
         self._setExposureState('integrating', cmd=cmd)
         self.grabHeaderKeys()
     
-    def readout(self, imtype=None, expTime=None, comment='', cmd=None, doRun=True):
+    def readout(self, imtype=None, expTime=None, darkTime=None, comment='', cmd=None, doRun=True):
         if imtype is not None:
             self.imtype = imtype
         if expTime is not None:
@@ -100,6 +100,15 @@ class Exposure(object):
         if comment is not None:
             self.comment = comment
 
+        # If we are not told what our dark time is, guess that the exposure was not
+        # paused.
+        if darkTime is None:
+            if self.expTime == 0:
+                darkTime = 0.0
+            else:
+                darkTime = self.expTime + 2*0.38
+        self.darkTime = darkTime
+        
         if cmd is None:
             cmd = self.cmd
             
@@ -116,6 +125,7 @@ class Exposure(object):
         self._setExposureState('reading', cmd=cmd)
         if doRun:
             im, filepath = ccdFuncs.readout(self.imtype, expTime=self.expTime,
+                                            darkTime=self.darkTime,
                                             ccd=self.ccd, feeControl=self.fee,
                                             extraCards=self.headerCards,
                                             comment=self.comment,

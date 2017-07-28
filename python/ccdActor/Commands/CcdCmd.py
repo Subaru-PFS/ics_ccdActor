@@ -29,7 +29,7 @@ class CcdCmd(object):
         #
         self.vocab = [
             ('wipe', '[<nrows>] [<ncols>]', self.wipe),
-            ('read', '[@(bias|dark|flat|arc|object|junk)] [<nrows>] [<ncols>] [<exptime>] [<obstime>] [<comment>] [@nope]',
+            ('read', '[@(bias|dark|flat|arc|object|junk)] [<nrows>] [<ncols>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope]',
              self.read),
             ('clock','[<nrows>] <ncols>', self.clock),
             ('clearExposure', '', self.clearExposure),
@@ -50,6 +50,8 @@ class CcdCmd(object):
                                         keys.Key("obstime", types.String(),
                                                  help='official DATE-OBS string'),
                                         keys.Key("exptime", types.Float(),
+                                                 help='official EXPTIME'),
+                                        keys.Key("darktime", types.Float(),
                                                  help='official EXPTIME'),
                                         keys.Key("comment", types.String(),
                                                  help='a comment to add.'),
@@ -174,9 +176,11 @@ class CcdCmd(object):
         doRun = 'nope' not in cmdKeys
         comment = cmdKeys['comment'].values[0] if 'comment' in cmdKeys else ''
         exptime = cmdKeys['exptime'].values[0] if 'exptime' in cmdKeys else None
+        darktime = cmdKeys['darktime'].values[0] if 'darktime' in cmdKeys else None
 
         exp = self._getExposure(cmd)
-        exp.readout(imtype, exptime, comment=comment, doRun=doRun, cmd=cmd)
+        exp.readout(imtype, exptime, darkTime=darktime,
+                    comment=comment, doRun=doRun, cmd=cmd)
         self.closeoutExposure(cmd=cmd)
         
         if doFinish:
