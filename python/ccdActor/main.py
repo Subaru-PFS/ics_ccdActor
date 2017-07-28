@@ -80,8 +80,11 @@ class OurActor(actorcore.ICC.ICC):
             cam = name.split('_')[-1]
         else:
             cam = None
-
         self.ids = SpectroIds(cam, site)
+
+        if name is None:
+            name = 'ccd_%s' % (self.ids.cam)
+            
         # This sets up the connections to/from the hub, the logger, and the twisted reactor.
         #
 
