@@ -20,7 +20,7 @@ def hostnameId():
 
 class SpectroIds(object):
     validArms = {'b', 'r', 'n'}
-    validSites = {'J','L','X'}
+    validSites = {'J','L','S','X'}
     
     def __init__(self, dewarName=None, site=None):
         if dewarName is None:
