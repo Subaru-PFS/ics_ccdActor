@@ -102,7 +102,7 @@ class CcdCmd(object):
 
     def _getExposure(self, cmd):
         if self.actor.exposure is None:
-            raise exposure.ExposureIsActive('no exposure is active!!')
+            raise exposure.NoExposureIsActive('no exposure is active!!')
             
         return self.actor.exposure
 
@@ -132,7 +132,7 @@ class CcdCmd(object):
                                 self.actor.bcast)
         self._setExposure(cmd, exp)
 
-        exp.wipe(cmd=cmd)
+        exp.wipe(cmd=cmd, nrows=nrows)
 
         if doFinish:
             cmd.finish('text="wiped!"')
@@ -197,8 +197,17 @@ class CcdCmd(object):
         exptime = cmdKeys['exptime'].values[0] if 'exptime' in cmdKeys else None
         darktime = cmdKeys['darktime'].values[0] if 'darktime' in cmdKeys else None
 
-        exp = self._getExposure(cmd)
+        try:
+            exp = self._getExposure(cmd)
+        except exposure.NoExposureIsActive:
+            exp = exposure.Exposure(self.actor, None, 0,
+                                    self.ccd, self.fee,
+                                    self.actor.bcast)
+            self._setExposure(cmd, exp)
+
         exp.readout(imtype, exptime, darkTime=darktime,
+                    nrows=nrows, ncols=ncols,
+                    doFeeCards=doFeeCards, doModes=doModes,
                     comment=comment, doRun=doRun, cmd=cmd)
         self.closeoutExposure(cmd=cmd)
         
