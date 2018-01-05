@@ -29,9 +29,11 @@ class CcdCmd(object):
         #
         self.vocab = [
             ('wipe', '[<nrows>] [<ncols>]', self.wipe),
-            ('read', '[@(bias|dark|flat|arc|object|junk)] [<nrows>] [<ncols>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope]',
+            ('read',
+             '[@(bias|dark|flat|arc|object|junk)] [<nrows>] [<ncols>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope]',
              self.read),
             ('clock','[<nrows>] <ncols>', self.clock),
+            ('revread','[<nrows>] [<binning>]', self.revRead),
             ('clearExposure', '', self.clearExposure),
             ('expose', '<nbias>', self.exposeBiases),
             ('expose', '<darks>', self.exposeDarks),
@@ -45,6 +47,8 @@ class CcdCmd(object):
                                                  help='Number of rows to readout'),
                                         keys.Key("ncols", types.Int(),
                                                  help='Number of amp columns to readout'),
+                                        keys.Key("binning", types.Int(),
+                                                 help='number of rows to bin'),
                                         keys.Key("filename", types.String(),
                                                  help='the name of a file to load from.'),
                                         keys.Key("obstime", types.String(),
@@ -144,11 +148,26 @@ class CcdCmd(object):
         ccdFuncs.clock(ncols, nrows=nrows,
                        ccd=self.ccd, feeControl=self.fee,
                        cmd=cmd)
-        
         if doFinish:
-            cmd.finish('text="clocking!"')
+            cmd.finish('text="clock!"')
         else:
-            cmd.inform('text="clocking!"')
+            cmd.inform('text="clock!"')
+
+    def revRead(self, cmd, doFinish=True, nrows=None, ncols=None):
+        """ Start the detector clocking. """
+
+        cmdKeys = cmd.cmd.keywords
+
+        nrows = cmdKeys['nrows'].values[0] if 'nrows' in cmdKeys else None
+        rowBinning = cmdKeys['binning'].values[0] if 'binning' in cmdKeys else 10
+        
+        ccdFuncs.fastRevRead(ccd=self.actor.ccd,
+                             rowBinning=rowBinning, nrows=nrows)
+
+        if doFinish:
+            cmd.finish('text="revread"')
+        else:
+            cmd.inform('text="revread"')
 
     def read(self, cmd, imType=None, doFinish=True,
              nrows=None, ncols=None,
