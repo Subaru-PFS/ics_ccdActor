@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 import logging
 
 from ccdActor.main import SpectroIds
 
-import fpga.ccd
+from . import fpga.ccd
 reload(fpga.ccd)
 
 

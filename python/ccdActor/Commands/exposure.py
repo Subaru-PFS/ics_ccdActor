@@ -235,7 +235,7 @@ class Exposure(object):
 
         try:
             keyDict = self.actor.models[enuName].keyVarDict
-        except Exception, e:
+        except Exception as e:
             self.cmd.warn('text="could not get ENU (%s) cards: e"' % (enuName, e))
             cards.append(('COMMENT', 'FAILED TO GET ENU cards'),)
             return cards
