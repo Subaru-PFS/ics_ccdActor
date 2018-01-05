@@ -59,11 +59,11 @@ class TestCmd(object):
         # In idle at this point
         cmd.inform('text="wiping..."')
         self.actor.commandSets['CcdCmd'].wipe(cmd,
-                                              ncols=10, nrows=2,
+                                              ncols=10, nrows=1,
                                               doFinish=False)
-        time.sleep(0.5)
+        time.sleep(0.5)         # "integrate"
         cmd.inform('text="reading..."')
-        self.actor.commandSets['CcdCmd'].read(cmd, ncols=10, nrows=10,
+        self.actor.commandSets['CcdCmd'].read(cmd, ncols=10, nrows=1,
                                               doFeeCards=False,
                                               doFinish=False)
         
