@@ -14,6 +14,8 @@ import fpga.ccdFuncs as ccdFuncs
 
 class ExposureIsActive(Exception):
     pass
+class NoExposureIsActive(Exception):
+    pass
 
 class ExpThread(threading.Thread):
     def __init__(self, group=None, target=None, name=None,
@@ -84,15 +86,17 @@ class Exposure(object):
             
         self._setExposureState('idle')
         
-    def wipe(self, cmd=None):
+    def wipe(self, cmd=None, nrows=None):
         """ Wipe/flush the detector and put it in integration mode. """
 
         self._setExposureState('wiping', cmd=cmd)
-        ccdFuncs.wipe(self.ccd, feeControl=self.fee)
+        ccdFuncs.wipe(self.ccd, feeControl=self.fee, nrows=nrows)
         self._setExposureState('integrating', cmd=cmd)
         self.grabHeaderKeys()
     
-    def readout(self, imtype=None, expTime=None, darkTime=None, comment='', cmd=None, doRun=True):
+    def readout(self, imtype=None, expTime=None, darkTime=None, comment='',
+                doFeeCards=None, doModes=None,
+                nrows=None, ncols=None, cmd=None, doRun=True):
         if imtype is not None:
             self.imtype = imtype
         if expTime is not None:
@@ -121,13 +125,17 @@ class Exposure(object):
 
         if self.exposureState != 'integrating':
             cmd.warn('text="reading out detector in odd state: %s"' % (str(self)))
+        if not hasattr(self, 'headerCards'):
+            self.grabHeaderKeys()
             
         self._setExposureState('reading', cmd=cmd)
         if doRun:
             im, filepath = ccdFuncs.readout(self.imtype, expTime=self.expTime,
                                             darkTime=self.darkTime,
                                             ccd=self.ccd, feeControl=self.fee,
+                                            nrows=nrows, ncols=ncols,
                                             extraCards=self.headerCards,
+                                            doFeeCards=doFeeCards, doModes=doModes,
                                             comment=self.comment,
                                             rowStatsFunc=rowCB)
         else:
