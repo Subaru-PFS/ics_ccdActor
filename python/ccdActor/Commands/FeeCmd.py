@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from collections import OrderedDict
+
 import os.path
 import time
 
@@ -24,10 +26,12 @@ class FeeCmd(object):
             ('fee', 'calibrate', self.calibrate),
             ('fee', 'status [@(serial)] [@(temps)] [@(bias)] [@(voltage)] [@(offset)] [@(preset)]', self.status),
             ('fee', 'test1', self.test1),
-            ('fee', 'setOffsets <n> <p>', self.setOffsets),
+            ('fee', 'setOffsets <n> <p> [@(save)]', self.setOffsets),
             ('feeTimes', '@raw', self.times),
             ('fee', 'setSerials [<ADC>] [<PA0>] [<CCD0>] [<CCD1>]', self.setSerials),
             ('fee', '@(setMode) @(idle|wipe|erase|expose|read|offset)', self.setMode),
+            ('fee', 'setVoltageCalibrations [<v3V3M>] [<v3V3>] [<v5VP>] [<v5VN>] [<v5VPpa>] [<v5VNpa>] [<v12VP>] [<v12VN>] [<v24VN>] [<v54VP>]',
+             self.setVoltageCalibrations),
         ]
 
         # Define typed command arguments for the above commands.
@@ -117,10 +121,12 @@ class FeeCmd(object):
 
         nOffsets = cmdKeys['n'].values
         pOffsets = cmdKeys['p'].values
+        doSave = 'save' in cmdKeys
+        
         amps = range(8)
         
-        self.actor.fee.setOffsets(amps, nOffsets, leg='n')
-        self.actor.fee.setOffsets(amps, pOffsets, leg='p')
+        self.actor.fee.setOffsets(amps, nOffsets, leg='n', doSave=doSave)
+        self.actor.fee.setOffsets(amps, pOffsets, leg='p', doSave=doSave)
 
         cmd.finish()
         
