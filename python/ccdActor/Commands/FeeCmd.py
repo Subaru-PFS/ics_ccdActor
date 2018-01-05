@@ -48,6 +48,16 @@ class FeeCmd(object):
                                                  help='the serial number for CCD 0'),
                                         keys.Key("CCD1", types.String(),
                                                  help='the serial number for CCD 1'),
+                                        keys.Key("v3V3M", types.Float()),
+                                        keys.Key("v3V3", types.Float()),
+                                        keys.Key("v5VP", types.Float()),
+                                        keys.Key("v5VN", types.Float()),
+                                        keys.Key("v5VPpa", types.Float()),
+                                        keys.Key("v5VNpa", types.Float()),
+                                        keys.Key("v12VP", types.Float()),
+                                        keys.Key("v12VN", types.Float()),
+                                        keys.Key("v24VN", types.Float()),
+                                        keys.Key("v54VP", types.Float()),
         )
 
     def raw(self, cmd):
@@ -196,4 +206,25 @@ class FeeCmd(object):
 
         cmd.finish()
         
+    def setVoltageCalibrations(self, cmd):
+        """ Set some/all FEE voltage calibrations. """
+
+        cmdKeys = cmd.cmd.keywords
+
+        voltageArgs = OrderedDict()
+        for k in cmdKeys:
+            if k.name == 'setVoltageCalibrations':
+                continue
+            # cmd.debug('text="trying to set voltage calibration for %s (%s)"' % (k.name,
+            #                                                                     k.name in cmdKeys))
+            voltageArgs[k.name] = cmdKeys[k.name].values[0]
+        try:
+            cmd.inform('text="trying to set voltage calibrations: %s"' % (voltageArgs))
+            self.actor.fee.setVoltageCalibrations(**voltageArgs)
+        except Exception as e:
+            cmd.fail('text="failed to set voltage calibrations: %s"' % (e))
+            return
+        
+        cmd.finish()
+
         
