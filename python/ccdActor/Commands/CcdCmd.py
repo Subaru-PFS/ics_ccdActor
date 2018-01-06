@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 from __future__ import division, absolute_import, print_function
+from builtins import range
+from builtins import object
 from past.builtins import reload
 
 import functools

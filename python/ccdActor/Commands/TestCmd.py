@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from builtins import object
 from past.builtins import reload
 
 import time
