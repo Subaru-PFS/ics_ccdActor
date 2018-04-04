@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import division
+from builtins import range
+from builtins import object
+from past.utils import old_div
 from collections import OrderedDict
 
 import os.path
@@ -75,7 +79,7 @@ class FeeCmd(object):
     def _status(self, cmd, keys):
         """ Actually generate the keywords for the passed in keys. """
 
-        for k, v in keys.iteritems():
+        for k, v in list(keys.items()):
             k = k.replace('.', '_')
             try:
                 float(v)
@@ -123,7 +127,7 @@ class FeeCmd(object):
         pOffsets = cmdKeys['p'].values
         doSave = 'save' in cmdKeys
         
-        amps = range(8)
+        amps = list(range(8))
         
         self.actor.fee.setOffsets(amps, nOffsets, leg='n', doSave=doSave)
         self.actor.fee.setOffsets(amps, pOffsets, leg='p', doSave=doSave)
@@ -157,7 +161,7 @@ class FeeCmd(object):
             ret = self.actor.fee.getRaw(cmdTxt)
         t1 = time.time()
 
-        cmd.finish('text="total=%0.2fs, per=%0.04fs"' % (t1-t0, (t1-t0)/cnt))
+        cmd.finish('text="total=%0.2fs, per=%0.04fs"' % (t1-t0, old_div((t1-t0),cnt)))
         
     def calibrate(self, cmd):
         """ Calibrate FEE DACs and load mode voltages. """

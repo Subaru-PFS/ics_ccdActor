@@ -1,5 +1,7 @@
 from __future__ import division, absolute_import, print_function
 
+from builtins import str
+from builtins import object
 import os
 import time
 import threading
@@ -235,8 +237,8 @@ class Exposure(object):
 
         try:
             keyDict = self.actor.models[enuName].keyVarDict
-        except Exception, e:
-            self.cmd.warn('text="could not get ENU (%s) cards: e"' % (enuName, e))
+        except Exception as e:
+            self.cmd.warn('text="could not get ENU (%s) cards: %s"' % (enuName, e))
             cards.append(('COMMENT', 'FAILED TO GET ENU cards'),)
             return cards
 

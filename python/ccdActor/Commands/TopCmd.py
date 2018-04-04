@@ -2,6 +2,8 @@
 
 from __future__ import division, absolute_import, print_function
 
+from builtins import str
+from builtins import object
 import opscore.protocols.keys as keys
 import opscore.protocols.types as types
 from opscore.utility.qstr import qstr
@@ -66,7 +68,7 @@ class TopCmd(object):
             cmd.fail('text="no controllers found"')
 
     def controllerKey(self):
-        controllerNames = self.actor.controllers.keys()
+        controllerNames = list(self.actor.controllers.keys())
         key = 'controllers=%s' % (','.join([c for c in controllerNames]))
 
         return key
@@ -117,7 +119,7 @@ class TopCmd(object):
         # cmd.inform('text="monitors: %s"' % (self.actor.monitors))
 
         cmd.inform('text="ids=%s"' % (str(self.actor.ids)))
-        cmd.inform('text="models=%s"' % (','.join(self.actor.models.keys())))
+        cmd.inform('text="models=%s"' % (','.join(list(self.actor.models.keys()))))
         
         if 'all' in cmd.cmd.keywords:
             for c in self.actor.controllers:

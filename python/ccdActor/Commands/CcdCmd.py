@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 from __future__ import division, absolute_import, print_function
+from builtins import range
+from builtins import object
+from past.builtins import reload
 
 import functools
 
@@ -39,6 +42,8 @@ class CcdCmd(object):
             ('expose', '<darks>', self.exposeDarks),
             ('setOffset', '<offset> <value>', self.setOffset),
             ('setOffsets', '<filename>', self.setOffsets),
+            ('controlLVDS', '@(on|off)', self.controlLVDS),
+            ('readCtrlWord', '', self.readCtrlWord),
         ]
 
         # Define typed command arguments for the above commands.
@@ -298,3 +303,19 @@ class CcdCmd(object):
 
         cmd.finish('text="set!"')
 
+    def controlLVDS(self, cmd):
+        """ Enable or disable the LVDS drivers to the FEE. """
+        
+        onOff = 'on' in cmd.cmd.keywords
+
+        if onOff:
+            ret = self.ccd.enableLVDS()
+        else:
+            ret = self.ccd.disableLVDS()
+
+        cmd.finish('text="last=%s set=%s"' % (ret, onOff))
+        
+    def readCtrlWord(self, cmd):
+        """ Read the PCI R_WPU_CTRL word. """
+        
+        cmd.finish('text="R_WPU_CTRL=0x%08x"' % (self.ccd.readCtrlWord()))
