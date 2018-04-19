@@ -14,7 +14,7 @@ class fee(feeControl.FeeControl):
         self.actor = actor
         self.name = name
         
-    def stop(self):
+    def stop(self, cmd=None):
         pass
     def start(self, cmd=None):
         pass
