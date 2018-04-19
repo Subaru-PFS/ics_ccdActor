@@ -26,6 +26,6 @@ class ccd(fpga.ccd.CCD):
         
     def stop(self):
         pass
-    def start(self):
+    def start(self, cmd=None):
         pass
     

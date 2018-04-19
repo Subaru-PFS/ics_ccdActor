@@ -16,6 +16,6 @@ class fee(feeControl.FeeControl):
         
     def stop(self):
         pass
-    def start(self):
+    def start(self, cmd=None):
         pass
     
