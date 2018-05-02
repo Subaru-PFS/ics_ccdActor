@@ -1,5 +1,3 @@
-from __future__ import division, absolute_import, print_function
-
 from builtins import str
 from builtins import object
 import os
@@ -10,7 +8,6 @@ import numpy as np
 
 from actorcore.utility import fits as fitsUtils
 from opscore.utility.qstr import qstr
-import astropy.io.fits as pyfits
 
 import fpga.ccdFuncs as ccdFuncs
 
