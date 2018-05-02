@@ -1,5 +1,3 @@
-from __future__ import division, absolute_import, print_function
-
 from builtins import str
 from builtins import object
 import os
@@ -10,7 +8,6 @@ import numpy as np
 
 from actorcore.utility import fits as fitsUtils
 from opscore.utility.qstr import qstr
-import astropy.io.fits as pyfits
 
 import fpga.ccdFuncs as ccdFuncs
 
@@ -97,7 +94,7 @@ class Exposure(object):
         self.grabHeaderKeys()
     
     def readout(self, imtype=None, expTime=None, darkTime=None, comment='',
-                doFeeCards=None, doModes=None,
+                doFeeCards=True, doModes=True,
                 nrows=None, ncols=None, cmd=None, doRun=True):
         if imtype is not None:
             self.imtype = imtype
