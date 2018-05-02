@@ -94,7 +94,7 @@ class Exposure(object):
         self.grabHeaderKeys()
     
     def readout(self, imtype=None, expTime=None, darkTime=None, comment='',
-                doFeeCards=None, doModes=None,
+                doFeeCards=True, doModes=True,
                 nrows=None, ncols=None, cmd=None, doRun=True):
         if imtype is not None:
             self.imtype = imtype
