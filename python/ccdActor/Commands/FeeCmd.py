@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 
-from __future__ import division
-from builtins import range
-from builtins import object
-from past.utils import old_div
 from collections import OrderedDict
+from importlib import reload
 
 import os.path
 import time
@@ -27,6 +24,7 @@ class FeeCmd(object):
         self.vocab = [
             ('fee', '@raw', self.raw),
             ('fee', 'download <pathname>', self.download),
+            ('fee', 'bootstrap <pathname>', self.bootstrap),
             ('fee', 'calibrate', self.calibrate),
             ('fee', 'status [@(serial)] [@(temps)] [@(bias)] [@(voltage)] [@(offset)] [@(preset)]', self.status),
             ('fee', 'test1', self.test1),
@@ -191,6 +189,25 @@ class FeeCmd(object):
         keys = self.actor.fee.sendCommandStr('gr')
         self._status(cmd, keys)
         
+        cmd.finish('')
+
+    def bootstrap(self, cmd):
+        """ Download firmware. """
+
+        import xcu_fpga.fee.feeControl as feeControl
+        reload(feeControl)
+        
+        path = cmd.cmd.keywords['pathname'].values[0]
+
+        if not os.path.exists(path):
+            cmd.fail('text="firmware file cannot be opened (%s)"' % (path))
+            return
+        if os.path.splitext(path)[1] != '.hex':
+            cmd.fail('text="firmware file must be a .hex file (%s)"' % (path))
+            return
+
+        feeControl.FeeControl(sendImage=path)
+
         cmd.finish('')
 
     def setSerials(self, cmd):
