@@ -174,13 +174,12 @@ class CcdCmd(object):
         else:
             cmd.inform('text="revread"')
 
-    def read(self, cmd, imType=None, doFinish=True,
+    def read(self, cmd, imtype=None, doFinish=True,
              nrows=None, ncols=None,
              doModes=True, doFeeCards=True):
         """ Readout the detector and put it in idle mode. """
 
         cmdKeys = cmd.cmd.keywords
-        imtype = 'bias'
 
         if nrows is None:
             nrows = cmdKeys['nrows'].values[0] if 'nrows' in cmdKeys else None
@@ -196,6 +195,7 @@ class CcdCmd(object):
             for t in self.imTypes:
                 if t in cmdKeys:
                     imtype = t
+                    break
 
         doRun = 'nope' not in cmdKeys
         comment = cmdKeys['comment'].values[0] if 'comment' in cmdKeys else ''
