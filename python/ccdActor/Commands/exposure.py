@@ -264,12 +264,35 @@ class Exposure(object):
 
         return cards
 
-    def grabHeaderKeys(self):
+    def _getInstHeader(self, cmd):
+        """ Gather FITS cards from all actors we are interested in. """
+
+        cmd.debug('text="fetching MHS cards..."')
+        cards = fitsUtils.gatherHeaderCards(cmd, self.actor, shortNames=True)
+        cmd.debug('text="fetched %d MHS cards..."' % (len(cards)))
+
+        # Until we convert to fitsio, convert cards to pyfits
+        pycards = []
+        for c in cards:
+            if isinstance(c, str):
+                pcard = 'COMMENT', c
+            else:
+                pcard = c['name'], c['value'], c.get('comment', '')
+            pycards.append(pcard)
+            cmd.debug('text=%s' % (qstr("fetched card: %s" % (str(pcard)))))
+
+        return pycards
+    
+    def grabHeaderKeys(self, cmd):
         """ Must not block! """
 
+        if cmd is None:
+            cmd = self.cmd
+            
         self.headerCards = []
+        self.headerCards.extend(self._getInstHeader(cmd))
         self.headerCards.extend(self._grabInternalCards())
-        self.headerCards.extend(self._grabCcdCards())
+        # self.headerCards.extend(self._grabCcdCards())
         self.headerCards.extend(self._grabXcuCards())
         self.headerCards.extend(self._grabEnuCards())
         self.headerCards.extend(self._grabDcbCards())
