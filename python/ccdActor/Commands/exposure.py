@@ -1,10 +1,11 @@
-from builtins import str
-from builtins import object
+import logging
 import os
 import time
 import threading
 
 import numpy as np
+
+import astropy.io.fits as pyfits
 
 from actorcore.utility import fits as fitsUtils
 from opscore.utility.qstr import qstr
@@ -47,7 +48,8 @@ class Exposure(object):
         self.startTime = time.time()
         self.comment = comment
         self.exposureState = "idle"
-
+        self.logger = logging.getLogger('exposure')
+        
         self.pleaseStop = False
         
     def __str__(self):

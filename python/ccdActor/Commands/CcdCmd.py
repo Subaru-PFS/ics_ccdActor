@@ -10,12 +10,11 @@ import functools
 import opscore.protocols.keys as keys
 import opscore.protocols.types as types
 
-import fpga.ccdFuncs as ccdFuncs
-reload(ccdFuncs)
-
 import astropy.io.fits as pyfits
 
+import fpga.ccdFuncs as ccdFuncs
 import Commands.exposure as exposure
+reload(ccdFuncs)
 reload(exposure)
     
 class CcdCmd(object):

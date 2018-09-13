@@ -20,7 +20,7 @@ def hostnameId():
     return hostid
 
 class SpectroIds(object):
-    validArms = {'b', 'r', 'n'}
+    validArms = dict(b=1, r=2, n=3, m=4)
     validSites = {'J','L','S','X'}
     
     def __init__(self, dewarName=None, site=None):
@@ -30,7 +30,7 @@ class SpectroIds(object):
             raise RuntimeError('dewarName (%s) must be of the form "r1"' % (dewarName))
         
         if dewarName[0] not in self.validArms:
-            raise RuntimeError('arm (%s) must one of: %s' % (dewarName[0], self.validArms))
+            raise RuntimeError('arm (%s) must one of: %s' % (dewarName[0], list(self.validArms.keys())))
         if dewarName[1] not in ('1','2','3','4','5','6','7','8','9'):
             raise RuntimeError('spectrograph number (%s) must be in 1..9' % (dewarName[1]))
         self.dewarName = dewarName
