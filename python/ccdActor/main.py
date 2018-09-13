@@ -101,14 +101,6 @@ class OurActor(actorcore.ICC.ICC):
         self.logger.setLevel(logLevel)
         self.everConnected = False
 
-        
-        models = [m % self.ids.idDict for m in ('enu', 'dcb',
-                                                'ccd_%(cam)s', 'xcu_%(cam)s',
-                                                # 'rexm_%(spec)s', 'hexaslit_%(spec)s',
-                                                # 'enu_%(spec)s', 'shutbia_%(spec)s',
-        )]
-        self.addModels(models)
-
         self.monitors = dict()
         self.statusLoopCB = self.statusLoop
 
@@ -133,6 +125,14 @@ class OurActor(actorcore.ICC.ICC):
             self.attachAllControllers()
             self.everConnected = True
 
+            models = [m % self.ids.idDict for m in ('enu', 'dcb',
+                                                    'xcu_%(cam)s', 'ccd_%(cam)s',
+                                                    'enu_%(spec)s', 'dcb_%(spec)s',)]
+            self.logger.info('adding models: %s', models)
+            self.addModels(models)
+            self.logger.info('added models: %s', self.models.keys())
+
+            
     def statusLoop(self, controller):
         try:
             self.callCommand("%s status" % (controller))
