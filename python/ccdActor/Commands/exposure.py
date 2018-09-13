@@ -93,9 +93,27 @@ class Exposure(object):
         self._setExposureState('wiping', cmd=cmd)
         ccdFuncs.wipe(self.ccd, feeControl=self.fee, nrows=nrows)
         self._setExposureState('integrating', cmd=cmd)
-        self.grabHeaderKeys()
+        self.grabHeaderKeys(cmd)
     
-    def readout(self, imtype=None, expTime=None, darkTime=None, comment='',
+    def makeFilePath(self, visit, cmd=None):
+        """ Fetch next image filename.
+
+        In real life, we will instantiate a Subaru-compliant image pathname generating object.
+
+        """
+
+        path = os.path.join('/data', 'pfs', time.strftime('%Y-%m-%d'))
+        path = os.path.expandvars(os.path.expanduser(path))
+        if not os.path.isdir(path):
+            os.makedirs(path, 0o755)
+
+        ids = self.actor.ids
+        filename = 'PF%sA%06d%s.fits' % (ids.site, visit, ids.camNum)
+
+        return os.path.join(path, filename)
+
+    def readout(self, imtype=None, expTime=None, darkTime=None,
+                visit=None, comment='',
                 doFeeCards=True, doModes=True,
                 nrows=None, ncols=None, cmd=None, doRun=True):
         if imtype is not None:
@@ -138,7 +156,13 @@ class Exposure(object):
                                             extraCards=self.headerCards,
                                             doFeeCards=doFeeCards, doModes=doModes,
                                             comment=self.comment,
+                                            doSave=(visit is None),
                                             rowStatsFunc=rowCB)
+            if visit is not None:
+                filepath = self.makeFilePath(visit)
+                cards = ccdFuncs.fetchCards(imtype, self.fee,
+                                            expTime=self.expTime, darkTime=self.darkTime)
+                self.writeImageFile(im, filepath, visit, addCards=cards, cmd=cmd)
         else:
             im = None
             filepath = "/no/such/dir/nosuchfile.fits"
