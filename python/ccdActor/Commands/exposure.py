@@ -145,7 +145,7 @@ class Exposure(object):
         if self.exposureState != 'integrating':
             cmd.warn('text="reading out detector in odd state: %s"' % (str(self)))
         if not hasattr(self, 'headerCards'):
-            self.grabHeaderKeys()
+            self.grabHeaderKeys(cmd)
             
         self._setExposureState('reading', cmd=cmd)
         if doRun:
@@ -179,6 +179,38 @@ class Exposure(object):
 
         return im, filepath
 
+    def addHeaderCards(self, hdr, cards, cmd):
+        for card in cards:
+            try:
+                hdr.append(card)
+            except Exception as e:
+                cmd.warn('text="failed to add card %s to header: %s"' % (card, e))
+                self.logger.warning("failed to add card to header: %s", e)
+                self.logger.warning("failed card: %r", card)
+    
+    def writeImageFile(self, im, filepath, visit, addCards=None, comment=None, cmd=None):
+        self.logger.warning('creating fits file: %s', filepath)
+        cmd.debug('text="creating fits file %s' % (filepath))
+        
+        hdr = pyfits.Header()
+        hdr.append(('W_VISIT', visit, 'PFS exposure visit number'))
+        self.addHeaderCards(hdr, self.ccd.idCards(), cmd)
+        self.addHeaderCards(hdr, self.ccd.geomCards(), cmd)
+        if addCards is not None:
+            self.addHeaderCards(hdr, addCards, cmd)
+        if comment is not None:
+            self.addHeaderCards(hdr, [comment], cmd)
+        self.addHeaderCards(hdr, self.headerCards, cmd)
+            
+        try:
+            pyfits.writeto(filepath, im, hdr, checksum=True)
+        except Exception as e:
+            cmd.warn('text="failed to write fits file %s: %s"' % (filepath, e))
+            self.logger.warn('failed to write fits file %s: %s', filepath, e)
+            self.logger.warn('hdr : %s', hdr)
+        
+        return filepath
+        
     def _grabCcdCards(self):
         ccdName = 'ccd_%s' % (self.actor.ids.cam)
         cards = []
