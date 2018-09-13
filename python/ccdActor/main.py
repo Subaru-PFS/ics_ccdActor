@@ -49,7 +49,11 @@ class SpectroIds(object):
     @property
     def cam(self):
         return self.dewarName
-        
+
+    @property
+    def camNum(self):
+        return '%d%d' % (self.specNum,
+                         self.validArms[self.arm])
     @property
     def arm(self):
         return self.dewarName[0]
@@ -65,6 +69,8 @@ class SpectroIds(object):
     @property
     def idDict(self):
         _idDict = dict(cam=self.cam,
+                       camNum=self.camNum,
+                       site=self.site,
                        arm=self.arm,
                        specNum=self.specNum,
                        spec=self.specModule)
