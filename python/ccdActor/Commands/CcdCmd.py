@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import division, absolute_import, print_function
-from builtins import range
-from builtins import object
-from past.builtins import reload
+from importlib import reload
 
 import functools
 
@@ -13,7 +10,11 @@ import opscore.protocols.types as types
 import astropy.io.fits as pyfits
 
 import fpga.ccdFuncs as ccdFuncs
+from clocks import clockIDs
+
 import Commands.exposure as exposure
+
+reload(clockIDs)
 reload(ccdFuncs)
 reload(exposure)
     
@@ -43,6 +44,7 @@ class CcdCmd(object):
             ('setOffsets', '<filename>', self.setOffsets),
             ('controlLVDS', '@(on|off)', self.controlLVDS),
             ('readCtrlWord', '', self.readCtrlWord),
+            ('setClocks', '[<on>] [<off>]', self.setClocks),
         ]
 
         # Define typed command arguments for the above commands.
@@ -76,6 +78,10 @@ class CcdCmd(object):
                                                  help='offset value'),
                                         keys.Key("value", types.Float(),
                                                  help='offset value'),
+                                        keys.Key("on", types.Enum(*sorted([c.label for c in clockIDs.signals]))*(1,),
+                                                 help="signals to turn on"),
+                                        keys.Key("off", types.Enum(*sorted([c.label for c in clockIDs.signals]))*(1,),
+                                                 help="signals to turn off"),
         )
 
         self.exposureState = 'idle'
@@ -322,3 +328,21 @@ class CcdCmd(object):
         """ Read the PCI R_WPU_CTRL word. """
         
         cmd.finish('text="R_WPU_CTRL=0x%08x"' % (self.ccd.readCtrlWord()))
+
+    def setClocks(self, cmd):
+        """ Set/clear given clock lines. """
+
+        cmdKeys = cmd.cmd.keywords
+
+        turnOn = []
+        if 'on' in cmdKeys:
+            turnOn = [clockIDs.signalsByName[n] for n in cmdKeys['on'].values]
+        turnOff = []
+        if 'off' in cmdKeys:
+            turnOff = [clockIDs.signalsByName[n] for n in cmdKeys['off'].values]
+        
+        self.ccd.setClockLevels(turnOn=turnOn, turnOff=turnOff, cmd=cmd)
+
+        cmd.finish()
+        
+        

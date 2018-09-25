@@ -1,6 +1,4 @@
-from __future__ import absolute_import
-from past.builtins import reload
-
+from importlib import reload
 import logging
 
 import xcu_fpga.fee.feeControl as feeControl
@@ -10,7 +8,9 @@ class fee(feeControl.FeeControl):
     def __init__(self, actor, name,
                  logLevel=logging.DEBUG):
 
-        feeControl.FeeControl.__init__(self, logLevel=logLevel)
+        fpga = actor.controllers.get('ccd', None)
+        feeControl.FeeControl.__init__(self, fpga=fpga,
+                                       logLevel=logLevel)
         self.actor = actor
         self.name = name
         
