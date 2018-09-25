@@ -1,10 +1,11 @@
-from builtins import str
-from builtins import object
+import logging
 import os
 import time
 import threading
 
 import numpy as np
+
+import astropy.io.fits as pyfits
 
 from actorcore.utility import fits as fitsUtils
 from opscore.utility.qstr import qstr
@@ -47,7 +48,8 @@ class Exposure(object):
         self.startTime = time.time()
         self.comment = comment
         self.exposureState = "idle"
-
+        self.logger = logging.getLogger('exposure')
+        
         self.pleaseStop = False
         
     def __str__(self):
@@ -91,9 +93,27 @@ class Exposure(object):
         self._setExposureState('wiping', cmd=cmd)
         ccdFuncs.wipe(self.ccd, feeControl=self.fee, nrows=nrows)
         self._setExposureState('integrating', cmd=cmd)
-        self.grabHeaderKeys()
+        self.grabHeaderKeys(cmd)
     
-    def readout(self, imtype=None, expTime=None, darkTime=None, comment='',
+    def makeFilePath(self, visit, cmd=None):
+        """ Fetch next image filename.
+
+        In real life, we will instantiate a Subaru-compliant image pathname generating object.
+
+        """
+
+        path = os.path.join('/data', 'pfs', time.strftime('%Y-%m-%d'))
+        path = os.path.expandvars(os.path.expanduser(path))
+        if not os.path.isdir(path):
+            os.makedirs(path, 0o755)
+
+        ids = self.actor.ids
+        filename = 'PF%sA%06d%s.fits' % (ids.site, visit, ids.camNum)
+
+        return os.path.join(path, filename)
+
+    def readout(self, imtype=None, expTime=None, darkTime=None,
+                visit=None, comment='',
                 doFeeCards=True, doModes=True,
                 nrows=None, ncols=None, cmd=None, doRun=True):
         if imtype is not None:
@@ -125,7 +145,7 @@ class Exposure(object):
         if self.exposureState != 'integrating':
             cmd.warn('text="reading out detector in odd state: %s"' % (str(self)))
         if not hasattr(self, 'headerCards'):
-            self.grabHeaderKeys()
+            self.grabHeaderKeys(cmd)
             
         self._setExposureState('reading', cmd=cmd)
         if doRun:
@@ -136,7 +156,13 @@ class Exposure(object):
                                             extraCards=self.headerCards,
                                             doFeeCards=doFeeCards, doModes=doModes,
                                             comment=self.comment,
+                                            doSave=(visit is None),
                                             rowStatsFunc=rowCB)
+            if visit is not None:
+                filepath = self.makeFilePath(visit)
+                cards = ccdFuncs.fetchCards(imtype, self.fee,
+                                            expTime=self.expTime, darkTime=self.darkTime)
+                self.writeImageFile(im, filepath, visit, addCards=cards, cmd=cmd)
         else:
             im = None
             filepath = "/no/such/dir/nosuchfile.fits"
@@ -153,6 +179,38 @@ class Exposure(object):
 
         return im, filepath
 
+    def addHeaderCards(self, hdr, cards, cmd):
+        for card in cards:
+            try:
+                hdr.append(card)
+            except Exception as e:
+                cmd.warn('text="failed to add card %s to header: %s"' % (card, e))
+                self.logger.warning("failed to add card to header: %s", e)
+                self.logger.warning("failed card: %r", card)
+    
+    def writeImageFile(self, im, filepath, visit, addCards=None, comment=None, cmd=None):
+        self.logger.warning('creating fits file: %s', filepath)
+        cmd.debug('text="creating fits file %s' % (filepath))
+        
+        hdr = pyfits.Header()
+        hdr.append(('W_VISIT', visit, 'PFS exposure visit number'))
+        self.addHeaderCards(hdr, self.ccd.idCards(), cmd)
+        self.addHeaderCards(hdr, self.ccd.geomCards(), cmd)
+        if addCards is not None:
+            self.addHeaderCards(hdr, addCards, cmd)
+        if comment is not None:
+            self.addHeaderCards(hdr, [comment], cmd)
+        self.addHeaderCards(hdr, self.headerCards, cmd)
+            
+        try:
+            pyfits.writeto(filepath, im, hdr, checksum=True)
+        except Exception as e:
+            cmd.warn('text="failed to write fits file %s: %s"' % (filepath, e))
+            self.logger.warn('failed to write fits file %s: %s', filepath, e)
+            self.logger.warn('hdr : %s', hdr)
+        
+        return filepath
+        
     def _grabCcdCards(self):
         ccdName = 'ccd_%s' % (self.actor.ids.cam)
         cards = []
@@ -264,12 +322,35 @@ class Exposure(object):
 
         return cards
 
-    def grabHeaderKeys(self):
+    def _getInstHeader(self, cmd):
+        """ Gather FITS cards from all actors we are interested in. """
+
+        cmd.debug('text="fetching MHS cards..."')
+        cards = fitsUtils.gatherHeaderCards(cmd, self.actor, shortNames=True)
+        cmd.debug('text="fetched %d MHS cards..."' % (len(cards)))
+
+        # Until we convert to fitsio, convert cards to pyfits
+        pycards = []
+        for c in cards:
+            if isinstance(c, str):
+                pcard = 'COMMENT', c
+            else:
+                pcard = c['name'], c['value'], c.get('comment', '')
+            pycards.append(pcard)
+            cmd.debug('text=%s' % (qstr("fetched card: %s" % (str(pcard)))))
+
+        return pycards
+    
+    def grabHeaderKeys(self, cmd):
         """ Must not block! """
 
+        if cmd is None:
+            cmd = self.cmd
+            
         self.headerCards = []
+        self.headerCards.extend(self._getInstHeader(cmd))
         self.headerCards.extend(self._grabInternalCards())
-        self.headerCards.extend(self._grabCcdCards())
+        # self.headerCards.extend(self._grabCcdCards())
         self.headerCards.extend(self._grabXcuCards())
         self.headerCards.extend(self._grabEnuCards())
         self.headerCards.extend(self._grabDcbCards())

@@ -10,12 +10,11 @@ import functools
 import opscore.protocols.keys as keys
 import opscore.protocols.types as types
 
-import fpga.ccdFuncs as ccdFuncs
-reload(ccdFuncs)
-
 import astropy.io.fits as pyfits
 
+import fpga.ccdFuncs as ccdFuncs
 import Commands.exposure as exposure
+reload(ccdFuncs)
 reload(exposure)
     
 class CcdCmd(object):
@@ -33,7 +32,7 @@ class CcdCmd(object):
         self.vocab = [
             ('wipe', '[<nrows>] [<ncols>]', self.wipe),
             ('read',
-             '[@(bias|dark|flat|arc|object|junk)] [<nrows>] [<ncols>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope]',
+             '[@(bias|dark|flat|arc|object|junk)] [<nrows>] [<ncols>] [<visit>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope]',
              self.read),
             ('clock','[<nrows>] <ncols>', self.clock),
             ('revread','[<nrows>] [<binning>]', self.revRead),
@@ -56,6 +55,8 @@ class CcdCmd(object):
                                                  help='number of rows to bin'),
                                         keys.Key("filename", types.String(),
                                                  help='the name of a file to load from.'),
+                                        keys.Key("visit", types.Int(),
+                                                 help='PFS visit to ass ign to filename'),
                                         keys.Key("obstime", types.String(),
                                                  help='official DATE-OBS string'),
                                         keys.Key("exptime", types.Float(),
@@ -201,7 +202,8 @@ class CcdCmd(object):
         comment = cmdKeys['comment'].values[0] if 'comment' in cmdKeys else ''
         exptime = cmdKeys['exptime'].values[0] if 'exptime' in cmdKeys else None
         darktime = cmdKeys['darktime'].values[0] if 'darktime' in cmdKeys else None
-
+        visit = cmdKeys['visit'].values[0] if 'visit' in cmdKeys else None
+        
         try:
             exp = self._getExposure(cmd)
         except exposure.NoExposureIsActive:
@@ -211,6 +213,7 @@ class CcdCmd(object):
             self._setExposure(cmd, exp)
 
         exp.readout(imtype, exptime, darkTime=darktime,
+                    visit=visit,
                     nrows=nrows, ncols=ncols,
                     doFeeCards=doFeeCards, doModes=doModes,
                     comment=comment, doRun=doRun, cmd=cmd)
