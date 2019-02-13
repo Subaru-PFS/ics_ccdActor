@@ -1,13 +1,11 @@
-from __future__ import absolute_import
-from past.builtins import reload
+from importlib import reload
 
 import logging
-
-from ccdActor.main import SpectroIds
 
 import fpga.ccd
 reload(fpga.ccd)
 
+from pfscore import spectroIds
 
 class ccd(fpga.ccd.CCD):
     def __init__(self, actor, name,
@@ -16,16 +14,16 @@ class ccd(fpga.ccd.CCD):
         try:
             fakeCam = actor.config.get(actor.name, 'fakeCam')
             actor.bcast.warn('text="setting ccd up on the fake camera: %s"' % (fakeCam))
-            ids = SpectroIds(fakeCam, actor.ids.site)
+            ids = spectroIds.SpectroIds(partname=fakeCam, actor.ids.site)
         except:
             ids = actor.ids
-        
+
         fpga.ccd.CCD.__init__(self, ids.specNum, ids.arm, site=ids.site)
         self.actor = actor
         self.name = name
-        
+
     def stop(self, cmd=None):
         pass
+
     def start(self, cmd=None):
         pass
-    

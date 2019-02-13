@@ -9,73 +9,8 @@ import socket
 from twisted.internet import reactor
 
 import actorcore.ICC
+from pfscore import spectroIds
 
-def ourIdent(hostname=None):
-    pass
-
-def hostnameId():
-    hostname = socket.gethostname()
-    hostname = os.path.splitext(hostname)[0]
-    _, hostid = hostname.split('-')
-    return hostid
-
-class SpectroIds(object):
-    validArms = dict(b=1, r=2, n=3, m=4)
-    validSites = {'J','L','S','X'}
-    
-    def __init__(self, dewarName=None, site=None):
-        if dewarName is None:
-            dewarName = hostnameId()
-        if len(dewarName) != 2:
-            raise RuntimeError('dewarName (%s) must be of the form "r1"' % (dewarName))
-        
-        if dewarName[0] not in self.validArms:
-            raise RuntimeError('arm (%s) must one of: %s' % (dewarName[0], list(self.validArms.keys())))
-        if dewarName[1] not in ('1','2','3','4','5','6','7','8','9'):
-            raise RuntimeError('spectrograph number (%s) must be in 1..9' % (dewarName[1]))
-        self.dewarName = dewarName
-        
-        if site is None:
-            import os
-            site = os.environ['PFS_SITE']
-            
-        if site not in self.validSites:
-            raise RuntimeError('site (%s) must one of: %s' % (site, self.validSites))
-        self.site = site
-
-    def __str__(self):
-        return "SpectroIds(cam=%s arm=%s spec=%s)" % (self.cam, self.arm, self.specModule)
-        
-    @property
-    def cam(self):
-        return self.dewarName
-
-    @property
-    def camNum(self):
-        return '%d%d' % (self.specNum,
-                         self.validArms[self.arm])
-    @property
-    def arm(self):
-        return self.dewarName[0]
-
-    @property
-    def specNum(self):
-        return int(self.dewarName[1])
-
-    @property
-    def specModule(self):
-        return 'sm' + self.dewarName[1]
-
-    @property
-    def idDict(self):
-        _idDict = dict(cam=self.cam,
-                       camNum=self.camNum,
-                       site=self.site,
-                       arm=self.arm,
-                       specNum=self.specNum,
-                       spec=self.specModule)
-        return _idDict
-    
 class OurActor(actorcore.ICC.ICC):
     def __init__(self, name=None, site=None,
                  productName=None, configFile=None,
@@ -87,7 +22,8 @@ class OurActor(actorcore.ICC.ICC):
             cam = name.split('_')[-1]
         else:
             cam = None
-        self.ids = SpectroIds(cam, site)
+
+        self.ids = spectroIds.SpectroIds(cam, site)
 
         if name is None:
             name = 'ccd_%s' % (self.ids.cam)
@@ -113,10 +49,6 @@ class OurActor(actorcore.ICC.ICC):
     @property
     def ccd(self):
         return self.controllers['ccd']
-
-    def specIds(self):
-        return self.ids.arm, self.ids.specNum
-        
 
     def connectionMade(self):
         if self.everConnected is False:
@@ -164,6 +96,8 @@ def main():
                         help='logging level')
     parser.add_argument('--name', default=None, type=str, nargs='?',
                         help='ccd name, e.g. ccd_r1')
+    parser.add_argument('--cam', default=None, type=str, nargs='?',
+                        help='ccd name, e.g. r1')
     parser.add_argument('--site', default=None, type=str, nargs='?',
                         help='PFS site, e.g. L for LAM')
     args = parser.parse_args()
