@@ -226,7 +226,7 @@ class Exposure(object):
         return cards
 
     def _grabXcuCards(self):
-        xcuName = 'xcu_%s' % (self.actor.ids.cam)
+        xcuName = 'xcu_%s' % (self.actor.ids.camName)
         cards = []
         cards.append(('COMMENT', '===================== XCU cards'),)
 

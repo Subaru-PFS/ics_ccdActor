@@ -26,7 +26,7 @@ class OurActor(actorcore.ICC.ICC):
         self.ids = spectroIds.SpectroIds(cam, site)
 
         if name is None:
-            name = 'ccd_%s' % (self.ids.cam)
+            name = 'ccd_%s' % (self.ids.camName)
             
         # This sets up the connections to/from the hub, the logger, and the twisted reactor.
         #
@@ -58,8 +58,8 @@ class OurActor(actorcore.ICC.ICC):
             self.everConnected = True
 
             models = [m % self.ids.idDict for m in ('enu', 'dcb',
-                                                    'xcu_%(cam)s', 'ccd_%(cam)s',
-                                                    'enu_%(spec)s', 'dcb_%(spec)s',)]
+                                                    'xcu_%(camName)s', 'ccd_%(camName)s',
+                                                    'enu_%(specName)s', 'dcb_%(specName)s',)]
             self.logger.info('adding models: %s', models)
             self.addModels(models)
             self.logger.info('added models: %s', self.models.keys())
