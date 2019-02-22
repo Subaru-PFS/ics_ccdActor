@@ -159,6 +159,13 @@ class Exposure(object):
         if comment is not None:
             self.comment = comment
 
+        # In operations, we are always told what our visit is. If we
+        # are not told, use an internally tracked file counter. Since we
+        # also need to run the ccd readout code outside of the actor,
+        # that is maintained by the ccd object.
+        if visit is None:
+            visit = self.ccd.fileMgr.consumeNextSeqno()
+            
         # If we are not told what our dark time is, guess that the exposure was not
         # paused.
         if darkTime is None:
@@ -185,20 +192,19 @@ class Exposure(object):
             
         self._setExposureState('reading', cmd=cmd)
         if doRun:
-            im, filepath = ccdFuncs.readout(self.imtype, expTime=self.expTime,
-                                            darkTime=self.darkTime,
-                                            ccd=self.ccd, feeControl=self.fee,
-                                            nrows=nrows, ncols=ncols,
-                                            extraCards=self.headerCards,
-                                            doFeeCards=doFeeCards, doModes=doModes,
-                                            comment=self.comment,
-                                            doSave=(visit is None),
-                                            rowStatsFunc=rowCB)
-            if visit is not None:
-                filepath = self.makeFilePath(visit)
-                cards = ccdFuncs.fetchCards(imtype, self.fee,
-                                            expTime=self.expTime, darkTime=self.darkTime)
-                self.writeImageFile(im, filepath, visit, addCards=cards, cmd=cmd)
+            im, _ = ccdFuncs.readout(self.imtype, expTime=self.expTime,
+                                     darkTime=self.darkTime,
+                                     ccd=self.ccd, feeControl=self.fee,
+                                     nrows=nrows, ncols=ncols,
+                                     doFeeCards=False, doModes=doModes,
+                                     comment=self.comment,
+                                     doSave=False,
+                                     rowStatsFunc=rowCB)
+
+            filepath = self.makeFilePath(visit, cmd)
+            daqCards = ccdFuncs.fetchCards(imtype, self.fee,
+                                           expTime=self.expTime, darkTime=self.darkTime)
+            self.writeImageFile(im, filepath, visit, addCards=daqCards, cmd=cmd)
         else:
             im = None
             filepath = "/no/such/dir/nosuchfile.fits"
