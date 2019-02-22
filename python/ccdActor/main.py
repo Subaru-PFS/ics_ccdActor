@@ -41,6 +41,7 @@ class OurActor(actorcore.ICC.ICC):
         self.statusLoopCB = self.statusLoop
 
         self.exposure = None
+        self.grating = 'real'
         
     @property
     def fee(self):
