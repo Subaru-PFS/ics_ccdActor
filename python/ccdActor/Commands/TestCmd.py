@@ -42,12 +42,12 @@ class TestCmd(object):
     def setGrating(self, cmd):
         """ Set the grating position """
 
-        cmdKeys = cmd.keys.keys
+        cmdKeys = cmd.cmd.keywords
         for g in {'low', 'med', 'real'}:
             if g in cmdKeys:
                 grating = g
                 
-        self.actor.grating = g
+        self.actor.grating = grating
         cmd.finish(f'text="grating set to: {grating}"')
         
     def testSP(self, cmd):
