@@ -94,7 +94,42 @@ class Exposure(object):
         ccdFuncs.wipe(self.ccd, feeControl=self.fee, nrows=nrows)
         self._setExposureState('integrating', cmd=cmd)
         self.grabHeaderKeys(cmd)
-    
+
+    def armNum(self, cmd):
+        """Return the correct arm number: 1, 2, or 4. 
+
+        For the red cryostats, we have two arm numbers: 2 for low res,
+        and 4 for medium res. This number is used (only?) in the
+        filename. Resolve which to use.
+
+        We _want_ to use the dcbActor rexm keyword. But we also allow
+        manually overriding that from the self.actor.grating
+        variable. That may only ever be used for code testing.
+
+        """
+        
+        if self.actor.ids.arm is not 'r':
+            return self.actor.ids.armNum
+        if self.actor.grating is not 'real':
+            arms = dict(low=2, med=4)
+            cmd.warn(f'text="using fake grating position {self.actor.grating}"')
+            return arms[self.actor.grating]
+
+        try:
+            rexm = self.actor.enuModel['rexm']
+        except:
+            cmd.warn('text="failed to get enu grating position: using low"')
+            return 2
+
+        try:
+            # ENU uses "mid", which I think should be changed.
+            arms = dict(low=2, mid=4, med=4)
+            return arms[rexm]
+        except KeyError:
+            cmd.warn(f'text="enu grating position invalid ({rexm}), using low for filename"')
+            return 2
+            
+            
     def makeFilePath(self, visit, cmd=None):
         """ Fetch next image filename.
 
@@ -108,7 +143,8 @@ class Exposure(object):
             os.makedirs(path, 0o755)
 
         ids = self.actor.ids
-        filename = 'PF%sA%06d%s.fits' % (ids.site, visit, ids.camNum)
+        filename = 'PF%sA%06d%d%d.fits' % (ids.site, visit,
+                                           ids.specNum, self.armNum(cmd))
 
         return os.path.join(path, filename)
 
