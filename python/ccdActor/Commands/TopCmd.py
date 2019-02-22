@@ -108,7 +108,7 @@ class TopCmd(object):
         """Query the actor for liveness/happiness."""
 
         cmd.warn("text='I am an empty and fake actor'")
-        cmd.inform('text="ccd=%s"' % (str(self.actor.ids)))
+        cmd.inform('text="ccd=%s"' % (self.actor.ids.camName))
         cmd.finish("text='Present and (probably) well'")
 
     def status(self, cmd):
@@ -118,7 +118,7 @@ class TopCmd(object):
         
         # cmd.inform('text="monitors: %s"' % (self.actor.monitors))
 
-        cmd.inform('text="ids=%s"' % (str(self.actor.ids)))
+        cmd.inform('text="ids=%s"' % (self.actor.ids.idDict))
         cmd.inform('text="models=%s"' % (','.join(list(self.actor.models.keys()))))
         
         if 'all' in cmd.cmd.keywords:

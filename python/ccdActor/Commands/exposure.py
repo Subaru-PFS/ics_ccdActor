@@ -94,7 +94,42 @@ class Exposure(object):
         ccdFuncs.wipe(self.ccd, feeControl=self.fee, nrows=nrows)
         self._setExposureState('integrating', cmd=cmd)
         self.grabHeaderKeys(cmd)
-    
+
+    def armNum(self, cmd):
+        """Return the correct arm number: 1, 2, or 4. 
+
+        For the red cryostats, we have two arm numbers: 2 for low res,
+        and 4 for medium res. This number is used (only?) in the
+        filename. Resolve which to use.
+
+        We _want_ to use the dcbActor rexm keyword. But we also allow
+        manually overriding that from the self.actor.grating
+        variable. That may only ever be used for code testing.
+
+        """
+        
+        if self.actor.ids.arm is not 'r':
+            return self.actor.ids.armNum
+        if self.actor.grating is not 'real':
+            arms = dict(low=2, med=4)
+            cmd.warn(f'text="using fake grating position {self.actor.grating}"')
+            return arms[self.actor.grating]
+
+        try:
+            rexm = self.actor.enuModel['rexm']
+        except:
+            cmd.warn('text="failed to get enu grating position: using low"')
+            return 2
+
+        try:
+            # ENU uses "mid", which I think should be changed.
+            arms = dict(low=2, mid=4, med=4)
+            return arms[rexm]
+        except KeyError:
+            cmd.warn(f'text="enu grating position invalid ({rexm}), using low for filename"')
+            return 2
+            
+            
     def makeFilePath(self, visit, cmd=None):
         """ Fetch next image filename.
 
@@ -108,7 +143,8 @@ class Exposure(object):
             os.makedirs(path, 0o755)
 
         ids = self.actor.ids
-        filename = 'PF%sA%06d%s.fits' % (ids.site, visit, ids.camNum)
+        filename = 'PF%sA%06d%d%d.fits' % (ids.site, visit,
+                                           ids.specNum, self.armNum(cmd))
 
         return os.path.join(path, filename)
 
@@ -123,6 +159,13 @@ class Exposure(object):
         if comment is not None:
             self.comment = comment
 
+        # In operations, we are always told what our visit is. If we
+        # are not told, use an internally tracked file counter. Since we
+        # also need to run the ccd readout code outside of the actor,
+        # that is maintained by the ccd object.
+        if visit is None:
+            visit = self.ccd.fileMgr.consumeNextSeqno()
+            
         # If we are not told what our dark time is, guess that the exposure was not
         # paused.
         if darkTime is None:
@@ -149,20 +192,19 @@ class Exposure(object):
             
         self._setExposureState('reading', cmd=cmd)
         if doRun:
-            im, filepath = ccdFuncs.readout(self.imtype, expTime=self.expTime,
-                                            darkTime=self.darkTime,
-                                            ccd=self.ccd, feeControl=self.fee,
-                                            nrows=nrows, ncols=ncols,
-                                            extraCards=self.headerCards,
-                                            doFeeCards=doFeeCards, doModes=doModes,
-                                            comment=self.comment,
-                                            doSave=(visit is None),
-                                            rowStatsFunc=rowCB)
-            if visit is not None:
-                filepath = self.makeFilePath(visit)
-                cards = ccdFuncs.fetchCards(imtype, self.fee,
-                                            expTime=self.expTime, darkTime=self.darkTime)
-                self.writeImageFile(im, filepath, visit, addCards=cards, cmd=cmd)
+            im, _ = ccdFuncs.readout(self.imtype, expTime=self.expTime,
+                                     darkTime=self.darkTime,
+                                     ccd=self.ccd, feeControl=self.fee,
+                                     nrows=nrows, ncols=ncols,
+                                     doFeeCards=False, doModes=doModes,
+                                     comment=self.comment,
+                                     doSave=False,
+                                     rowStatsFunc=rowCB)
+
+            filepath = self.makeFilePath(visit, cmd)
+            daqCards = ccdFuncs.fetchCards(imtype, self.fee,
+                                           expTime=self.expTime, darkTime=self.darkTime)
+            self.writeImageFile(im, filepath, visit, addCards=daqCards, cmd=cmd)
         else:
             im = None
             filepath = "/no/such/dir/nosuchfile.fits"
@@ -226,7 +268,7 @@ class Exposure(object):
         return cards
 
     def _grabXcuCards(self):
-        xcuName = 'xcu_%s' % (self.actor.ids.cam)
+        xcuName = 'xcu_%s' % (self.actor.ids.camName)
         cards = []
         cards.append(('COMMENT', '===================== XCU cards'),)
 

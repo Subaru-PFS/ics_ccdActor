@@ -27,6 +27,7 @@ class TestCmd(object):
             ('test', 'V0', self.testV0),
             ('test', 'SP', self.testSP),
             ('test', 'offsets', self.testOffsets),
+            ('setGrating', '@(low|med|real)', self.setGrating),
         ]
 
         # Define typed command arguments for the above commands.
@@ -37,7 +38,18 @@ class TestCmd(object):
     @property
     def fee(self):
         return self.actor.fee
-    
+
+    def setGrating(self, cmd):
+        """ Set the grating position """
+
+        cmdKeys = cmd.cmd.keywords
+        for g in {'low', 'med', 'real'}:
+            if g in cmdKeys:
+                grating = g
+                
+        self.actor.grating = grating
+        cmd.finish(f'text="grating set to: {grating}"')
+        
     def testSP(self, cmd):
         """ Run the FEE/CCD/scope Sx/Px tests. """
 
