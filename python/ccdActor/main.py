@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from builtins import object
 import argparse
 import logging
 import os
@@ -51,6 +50,11 @@ class OurActor(actorcore.ICC.ICC):
     def ccd(self):
         return self.controllers['ccd']
 
+    @property
+    def enuModel(self):
+        enuName = 'enu_%(specName)s' % self.ids.idDict
+        return self.models[enuName]
+    
     def connectionMade(self):
         if self.everConnected is False:
             logging.info("Attaching all controllers...")
@@ -58,8 +62,7 @@ class OurActor(actorcore.ICC.ICC):
             self.attachAllControllers()
             self.everConnected = True
 
-            models = [m % self.ids.idDict for m in ('enu', 'dcb',
-                                                    'xcu_%(camName)s', 'ccd_%(camName)s',
+            models = [m % self.ids.idDict for m in ('xcu_%(camName)s', 'ccd_%(camName)s',
                                                     'enu_%(specName)s', 'dcb_%(specName)s',)]
             self.logger.info('adding models: %s', models)
             self.addModels(models)
