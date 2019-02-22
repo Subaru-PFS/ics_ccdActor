@@ -116,8 +116,9 @@ class Exposure(object):
             return arms[self.actor.grating]
 
         try:
-            rexm = self.actor.enuModel['rexm']
-        except:
+            rexm = self.actor.enuModel.keyVarDict['rexm'].getValue()
+        except Exception as e:
+            self.logger.warn('failed to get enu grating position: %s', e)
             cmd.warn('text="failed to get enu grating position: using low"')
             return 2
 
