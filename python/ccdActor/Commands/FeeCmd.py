@@ -159,7 +159,7 @@ class FeeCmd(object):
             ret = self.actor.fee.getRaw(cmdTxt)
         t1 = time.time()
 
-        cmd.finish('text="total=%0.2fs, per=%0.04fs"' % (t1-t0, old_div((t1-t0),cnt)))
+        cmd.finish('text="total=%0.2fs, per=%0.04fs"' % (t1-t0, (t1-t0)/cnt))
         
     def calibrate(self, cmd):
         """ Calibrate FEE DACs and load mode voltages. """
