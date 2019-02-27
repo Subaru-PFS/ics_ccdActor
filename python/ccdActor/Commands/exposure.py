@@ -203,7 +203,7 @@ class Exposure(object):
                                      rowStatsFunc=rowCB)
 
             filepath = self.makeFilePath(visit, cmd)
-            daqCards = ccdFuncs.fetchCards(imtype, self.fee,
+            daqCards = ccdFuncs.fetchCards(self.imtype, self.fee,
                                            expTime=self.expTime, darkTime=self.darkTime)
             self.writeImageFile(im, filepath, visit, addCards=daqCards, cmd=cmd)
         else:
