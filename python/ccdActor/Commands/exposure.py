@@ -155,10 +155,16 @@ class Exposure(object):
                 nrows=None, ncols=None, cmd=None, doRun=True):
         if imtype is not None:
             self.imtype = imtype
+        else:
+            imtype = self.imtype
         if expTime is not None:
             self.expTime = expTime
+        else:
+            expTime = self.expTime
         if comment is not None:
             self.comment = comment
+        else:
+            comment = self.comment
 
         # In operations, we are always told what our visit is. If we
         # are not told, use an internally tracked file counter. Since we
