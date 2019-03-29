@@ -384,7 +384,10 @@ class Exposure(object):
             if isinstance(c, str):
                 pcard = 'COMMENT', c
             else:
-                pcard = c['name'], c['value'], c.get('comment', '')
+                value = c['value']
+                if value is None:
+                    value = pyfits.Undefined()
+                pcard = c['name'], value, c.get('comment', '')
             pycards.append(pcard)
             cmd.debug('text=%s' % (qstr("fetched card: %s" % (str(pcard)))))
 
