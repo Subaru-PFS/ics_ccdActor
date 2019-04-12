@@ -63,7 +63,7 @@ class OurActor(actorcore.ICC.ICC):
             self.everConnected = True
 
             models = [m % self.ids.idDict for m in ('xcu_%(camName)s', 'ccd_%(camName)s',
-                                                    'enu_%(specName)s', 'dcb_%(specName)s',)]
+                                                    'enu_%(specName)s', 'dcb',)]
             self.logger.info('adding models: %s', models)
             self.addModels(models)
             self.logger.info('added models: %s', self.models.keys())
