@@ -218,6 +218,9 @@ class CcdCmd(object):
                                     self.actor.bcast)
             self._setExposure(cmd, exp)
 
+        if self.ccd.holdOn or self.ccd.holdOff:
+            cmd.warn(f'text="reading with held clocks: on={self.ccd.holdOn} off={self.ccd.holdOff}"')
+            
         exp.readout(imtype, exptime, darkTime=darktime,
                     visit=visit,
                     nrows=nrows, ncols=ncols,
@@ -344,5 +347,21 @@ class CcdCmd(object):
         self.ccd.setClockLevels(turnOn=turnOn, turnOff=turnOff, cmd=cmd)
 
         cmd.finish()
+        
+    def holdClocks(self, cmd):
+        """ request that given clock lines always be help on or off """
+
+        cmdKeys = cmd.cmd.keywords
+
+        holdOn = []
+        if 'on' in cmdKeys:
+            holdOn = cmdKeys['on'].values
+        holdOff = []
+        if 'off' in cmdKeys:
+            holdOff = cmdKeys['off'].values
+        
+        self.ccd.holdClocks(holdOn=holdOn, holdOff=holdOff, cmd=cmd)
+
+        cmd.finish(f'text="set held clocks. on={self.ccd.holdOn} off={self.ccd.holdOff}"')
         
         
