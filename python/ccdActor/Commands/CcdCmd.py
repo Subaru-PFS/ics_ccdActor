@@ -45,6 +45,8 @@ class CcdCmd(object):
             ('controlLVDS', '@(on|off)', self.controlLVDS),
             ('readCtrlWord', '', self.readCtrlWord),
             ('setClocks', '[<on>] [<off>]', self.setClocks),
+            ('holdClocks', '[<on>] [<off>]', self.holdClocks),
+            ('setAdcMode', '@(msb|mid|lsb)', self.setAdcMode),
         ]
 
         # Define typed command arguments for the above commands.
@@ -331,6 +333,19 @@ class CcdCmd(object):
         """ Read the PCI R_WPU_CTRL word. """
         
         cmd.finish('text="R_WPU_CTRL=0x%08x"' % (self.ccd.readCtrlWord()))
+
+    def setAdcMode(self, cmd):
+        """ Set the ADC readout mode (msb, lsb, or mid) """
+
+        if 'msb' in cmd.cmd.keywords:
+            mode = 3
+        elif 'mid' in cmd.cmd.keywords:
+            mode = 1
+        elif 'lsb' in cmd.cmd.keywords:
+            mode = 0
+
+        self.ccd.setAdcType(mode)
+        cmd.finish(f'text="set adc mode to {mode}: {str(self.ccd)}"')
 
     def setClocks(self, cmd):
         """ Set/clear given clock lines. """
