@@ -9,7 +9,9 @@ class fee(feeControl.FeeControl):
                  logLevel=logging.DEBUG):
 
         fpga = actor.controllers.get('ccd', None)
+        port = actor.config.get('fee', 'port')
         feeControl.FeeControl.__init__(self, fpga=fpga,
+                                       port=port,
                                        logLevel=logLevel)
         self.actor = actor
         self.name = name
