@@ -220,9 +220,12 @@ class CcdCmd(object):
                                     self.actor.bcast)
             self._setExposure(cmd, exp)
 
-        if self.ccd.holdOn or self.ccd.holdOff:
-            cmd.warn(f'text="reading with held clocks: on={self.ccd.holdOn} off={self.ccd.holdOff}"')
-            
+        try:
+            if self.ccd.holdOn or self.ccd.holdOff:
+                cmd.warn(f'text="reading with held clocks: on={self.ccd.holdOn} off={self.ccd.holdOff}"')
+        except AttributeError:
+            pass                # Old ADC code (7.40) does not have the attribute.
+        
         exp.readout(imtype, exptime, darkTime=darktime,
                     visit=visit,
                     nrows=nrows, ncols=ncols,
