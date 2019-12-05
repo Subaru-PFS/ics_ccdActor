@@ -212,9 +212,8 @@ class Exposure(object):
                                      rowStatsFunc=rowCB)
 
             filepath = self.makeFilePath(visit, cmd)
-            daqCards = ccdFuncs.fetchCards(self.imtype, self.fee,
-                                           expTime=self.expTime, darkTime=self.darkTime)
-            self.writeImageFile(im, filepath, visit, addCards=daqCards, cmd=cmd)
+            self.writeImageFile(im, filepath, visit,
+                                comment=self.comment, cmd=cmd)
         else:
             im = None
             filepath = "/no/such/dir/nosuchfile.fits"
