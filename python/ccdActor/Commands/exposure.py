@@ -113,9 +113,9 @@ class Exposure(object):
 
         """
         
-        if self.actor.ids.arm is not 'r':
+        if self.actor.ids.arm != 'r':
             return self.actor.ids.armNum
-        if self.actor.grating is not 'real':
+        if self.actor.grating != 'real':
             arms = dict(low=2, med=4)
             cmd.warn(f'text="using fake grating position {self.actor.grating}"')
             return arms[self.actor.grating]
@@ -155,21 +155,15 @@ class Exposure(object):
         return os.path.join(path, filename)
 
     def readout(self, imtype=None, expTime=None, darkTime=None,
-                visit=None, comment='',
+                visit=None, obstime=None, comment='',
                 doFeeCards=True, doModes=True,
                 nrows=None, ncols=None, cmd=None, doRun=True):
         if imtype is not None:
             self.imtype = imtype
-        else:
-            imtype = self.imtype
         if expTime is not None:
             self.expTime = expTime
-        else:
-            expTime = self.expTime
         if comment is not None:
             self.comment = comment
-        else:
-            comment = self.comment
 
         # In operations, we are always told what our visit is. If we
         # are not told, use an internally tracked file counter. Since we
@@ -289,112 +283,6 @@ class Exposure(object):
         
         return filepath
         
-    def _grabCcdCards(self):
-        ccdName = 'ccd_%s' % (self.actor.ids.cam)
-        cards = []
-        cards.append(('COMMENT', '===================== CCD cards'),)
-
-        try:
-            keyDict = self.actor.models[ccdName].keyVarDict
-        except Exception as e:
-            self.cmd.warn('text="could not get %s cards: %s"' % (ccdName, e))
-            cards.append(('COMMENT', 'FAILED TO GET CCD (%s) cards' % (ccdName)),)
-            return cards
-        
-        return cards
-
-    def _grabXcuCards(self):
-        xcuName = 'xcu_%s' % (self.actor.ids.camName)
-        cards = []
-        cards.append(('COMMENT', '===================== XCU cards'),)
-
-        try:
-            keyDict = self.actor.models[xcuName].keyVarDict
-        except Exception as e:
-            self.cmd.warn('text="could not get %s cards: %s"' % (xcuName, e))
-            cards.append(('COMMENT', 'FAILED TO GET XCU (%s) cards' % (xcuName)),)
-            return cards
-
-        motorCards = (('W_XCU_MOTOR%d_STATE', 'ccdMotor%d', 0, str, ''),
-                      ('W_XCU_MOTOR%d_HOMESWITCH', 'ccdMotor%d', 1, bool, ''),
-                      ('W_XCU_MOTOR%d_FARSWITCH', 'ccdMotor%d', 2, bool, ''),
-                      ('W_XCU_MOTOR%d_STEPS', 'ccdMotor%d', 3, int, 'Full motor steps'),
-                      ('W_XCU_MOTOR%d_MICRONS', 'ccdMotor%d', 4, float, 'um at FPA'))
-                    
-        for c in motorCards:
-            cardName, keyName, idx, cnv, comment = c
-            for motor in 1,2,3:
-                c = fitsUtils.makeCardFromKey(self.cmd, keyDict,
-                                              keyName % (motor), 
-                                              cardName % (motor),
-                                              idx=idx,
-                                              cnv=cnv, comment=comment)
-                cards.append(c)
-            
-        return cards
-
-    def _grabDcbCards(self):
-        cards = []
-        cards.append(('COMMENT', '===================== DCB cards'),)
-
-        try:
-            keyDict = self.actor.models['dcb'].keyVarDict
-        except:
-            self.cmd.warn('text="could not get DCB cards"')
-            cards.append(('COMMENT', 'FAILED TO GET DCB cards'),)
-            return cards
-
-        def ftL2cdm2(footLamberts):
-            return np.round(float(footLamberts) * 3.426, 3)
-        
-        dcbCards = (('W_AIT_SRC_Ne',   'ne',    bool, 'AIT Ne lamp'),
-                    ('W_AIT_SRC_Xe',   'xenon', bool, 'AIT Xe lamp'),
-                    ('W_AIT_SRC_HgAr', 'hgar',  bool, 'AIT HgAr lamp'),
-                    ('W_AIT_SRC_Qth',  'halogen',    bool, 'AIT halogen lamp'),
-                    ('W_AIT_SRC_Atten',  'attenuator',    int, 'AIT int sphere attenuator value'),
-                    ('W_AIT_SRC_diodeFlux',  'photodiode', ftL2cdm2, 'cd/m^2 at photodiode'),
-                    )
-                    
-        for c in dcbCards:
-            cardName, keyName, cnv, comment = c
-            c = fitsUtils.makeCardFromKey(self.cmd, keyDict, keyName,
-                                          cardName, cnv=cnv, comment=comment)
-            cards.append(c)
-
-        return cards
-
-    def _grabEnuCards(self):
-        enuName = "enu"         # Should be "enu_sm%d"
-        cards = []
-        cards.append(('COMMENT', '===================== ENU cards'),)
-
-        try:
-            keyDict = self.actor.models[enuName].keyVarDict
-        except Exception as e:
-            self.cmd.warn('text="could not get ENU (%s) cards: %s"' % (enuName, e))
-            cards.append(('COMMENT', 'FAILED TO GET ENU cards'),)
-            return cards
-
-        # slit=IDLE,operation,0.00000,-0.00000,0.00000,0.00000,0.00000,-0.00000
-        slitCards = (('W_FCA_STATE', 'slit', 0, str, ''),
-                     ('W_FCA_FOCUS', 'slit', 2, float, ''),
-                     ('W_FCA_SHIFT', 'slit', 3, float, ''),
-                     ('W_FCA_DITHER', 'slit', 4, float, ''),
-                     ('W_FCA_PITCH', 'slit', 5, float, ''),
-                     ('W_FCA_ROLL', 'slit', 6, float, ''),
-                     ('W_FCA_YAW', 'slit', 7, float, ''))
-
-        for c in slitCards:
-            cardName, keyName, idx, cnv, comment = c
-            c = fitsUtils.makeCardFromKey(self.cmd, keyDict,
-                                          keyName, 
-                                          cardName,
-                                          idx=idx,
-                                          cnv=cnv, comment=comment)
-            cards.append(c)
-        
-        return cards
-
     def _grabInternalCards(self):
         cards = []
 
