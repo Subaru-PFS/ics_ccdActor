@@ -1,3 +1,5 @@
+from importlib import reload
+
 import logging
 import os
 import time
@@ -5,12 +7,12 @@ import threading
 
 import numpy as np
 
-import astropy.io.fits as pyfits
-
+import fitsio
 from actorcore.utility import fits as fitsUtils
+from actorcore.utility import timecards
 from opscore.utility.qstr import qstr
-
 import fpga.ccdFuncs as ccdFuncs
+reload(fitsUtils)
 
 class ExposureIsActive(Exception):
     pass
@@ -228,31 +230,51 @@ class Exposure(object):
 
         return im, filepath
 
-    def addHeaderCards(self, hdr, cards, cmd):
-        for card in cards:
-            try:
-                hdr.append(card)
-            except Exception as e:
-                cmd.warn('text="failed to add card %s to header: %s"' % (card, e))
-                self.logger.warning("failed to add card to header: %s", e)
-                self.logger.warning("failed card: %r", card)
-    
     def writeImageFile(self, im, filepath, visit, addCards=None, comment=None, cmd=None):
-        self.logger.warning('creating fits file: %s', filepath)
+        """ Actually write the FITS file. 
+
+        Args
+        ----
+        im : `numpy.ndarray`
+          The image.
+        filepath : `str` or `pathlib.Path`
+          The full pathname of the file to write.
+        visit : `int`
+          The PFS visit number
+        addCards : sequence of fitsio card dicts
+          FITS cards to add.
+        comment : `str`
+          A comment to put at the start of the headeer.
+        cmd : `actorcore.Command`
+          Where to dribble info
+
+        Returns
+        -------
+        filepath : `str`
+          the input filepath
+
+        The file is saved with RICE compression.
+
+        """
+        self.logger.info('creating fits file: %s', filepath)
         cmd.debug('text="creating fits file %s' % (filepath))
         
-        hdr = pyfits.Header()
-        hdr.append(('W_VISIT', visit, 'PFS exposure visit number'))
-        self.addHeaderCards(hdr, self.ccd.idCards(), cmd)
-        self.addHeaderCards(hdr, self.ccd.geomCards(), cmd)
-        if addCards is not None:
-            self.addHeaderCards(hdr, addCards, cmd)
+        cards = []
         if comment is not None:
-            self.addHeaderCards(hdr, [comment], cmd)
-        self.addHeaderCards(hdr, self.headerCards, cmd)
+            cards.append(dict(name='comment', value=comment))
+
+        if addCards is not None:
+            cards.extend(addCards)
+        cards.extend(self.headerCards)
             
         try:
-            pyfits.writeto(filepath, im, hdr, checksum=True)
+            hdr = fitsio.FITSHDR(cards)
+            fitsFile = fitsio.FITS(str(filepath), 'rw')
+            fitsFile.write(None, header=hdr)
+            fitsFile[-1].write_checksum()
+            fitsFile.write(im, extname="image", compress='RICE')
+            fitsFile[-1].write_checksum()
+            fitsFile.close()
         except Exception as e:
             cmd.warn('text="failed to write fits file %s: %s"' % (filepath, e))
             self.logger.warn('failed to write fits file %s: %s', filepath, e)
@@ -378,31 +400,46 @@ class Exposure(object):
         cards = fitsUtils.gatherHeaderCards(cmd, self.actor, shortNames=True)
         cmd.debug('text="fetched %d MHS cards..."' % (len(cards)))
 
-        # Until we convert to fitsio, convert cards to pyfits
-        pycards = []
-        for c in cards:
-            if isinstance(c, str):
-                pcard = 'COMMENT', c
-            else:
-                value = c['value']
-                if value is None:
-                    value = pyfits.Undefined()
-                pcard = c['name'], value, c.get('comment', '')
-            pycards.append(pcard)
-            cmd.debug('text=%s' % (qstr("fetched card: %s" % (str(pcard)))))
+        return cards
 
-        return pycards
-    
-    def grabHeaderKeys(self, cmd):
+    def grabStartingHeaderKeys(self, cmd):
         """ Must not block! """
 
         if cmd is None:
             cmd = self.cmd
-            
+
         self.headerCards = []
         self.headerCards.extend(self._getInstHeader(cmd))
         self.headerCards.extend(self._grabInternalCards())
-        # self.headerCards.extend(self._grabCcdCards())
-        self.headerCards.extend(self._grabXcuCards())
-        self.headerCards.extend(self._grabEnuCards())
-        self.headerCards.extend(self._grabDcbCards())
+
+    def finishHeaderKeys(self, cmd, visit):
+        """ Finish the header. Called after readout starts and before it ends. Must not block! """
+
+        if cmd is None:
+            cmd = self.cmd
+
+        timecards = self.timecards.getCards()
+
+        gain = 1.0
+        detectorId = self.actor.ids.camName
+        detectorTemp = 9998.0
+        
+        allCards = []
+        allCards.append(dict(name='DATA-TYP', value=self.imtype.upper(), comment='Subaru-style exposure type'))
+        allCards.append(dict(name='W_VISIT', value=visit, comment='PFS exposure visit number'))
+        allCards.append(dict(name='W_ARM', value=self.actor.ids.arm, comment='Spectrograph arm'))
+        allCards.append(dict(name='W_SPMOD', value=self.actor.ids.specNum, comment='Spectrograph module'))
+        allCards.append(dict(name='DETECTOR', value=detectorId, comment='Name of the detector/CCD'))
+        allCards.append(dict(name='GAIN', value=gain, comment='[e-/ADU] AD conversion factor'))
+        allCards.append(dict(name='DET-TMP', value=detectorTemp, comment='[degC] Detector temperature'))
+        
+        allCards.append(dict(name='COMMENT', value='################################ Time cards'))
+        allCards.append(dict(name='EXPTIME', value=np.round(float(self.expTime), 3),
+                             comment='Usually the measured time from the shutter'))
+        allCards.append(dict(name='DARKTIME', value=np.round(float(self.darkTime), 3),
+                             comment='EXPTIME plus shutter transit and pauses'))
+        
+        allCards.extend(timecards)
+        allCards.extend(self.headerCards)
+            
+        self.headerCards = allCards
