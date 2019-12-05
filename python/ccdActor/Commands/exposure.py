@@ -51,6 +51,7 @@ class Exposure(object):
         self.comment = comment
         self.exposureState = "idle"
         self.logger = logging.getLogger('exposure')
+        self.timecards = None
         
         self.pleaseStop = False
         
@@ -94,8 +95,10 @@ class Exposure(object):
 
         self._setExposureState('wiping', cmd=cmd)
         ccdFuncs.wipe(self.ccd, feeControl=self.fee, nrows=nrows)
+        self.timecards = timecards.TimeCards()
         self._setExposureState('integrating', cmd=cmd)
-        self.grabHeaderKeys(cmd)
+        self.startTime = time.time()
+        self.grabStartingHeaderKeys(cmd)
 
     def armNum(self, cmd):
         """Return the correct arm number: 1, 2, or 4. 
@@ -175,6 +178,24 @@ class Exposure(object):
         if visit is None:
             visit = self.ccd.fileMgr.consumeNextSeqno()
             
+        if cmd is None:
+            cmd = self.cmd
+            
+        def rowCB(line, image, errorMsg="OK", cmd=cmd, **kwargs):
+            imageHeight = image.shape[0]
+            everyNRows = 500
+            if (line % everyNRows != 0) and (line < imageHeight-1):
+                return
+            cmd.inform('readRows=%d,%d' % (line, imageHeight))
+
+        if self.exposureState != 'integrating':
+            cmd.warn('text="reading out detector in odd state: %s"' % (str(self)))
+        if not hasattr(self, 'headerCards'):
+            self.grabStartingHeaderKeys(cmd)
+            
+        self._setExposureState('reading', cmd=cmd)
+        if expTime is None:
+            self.expTime = time.time() - self.startTime
         # If we are not told what our dark time is, guess that the exposure was not
         # paused.
         if darkTime is None:
@@ -184,23 +205,9 @@ class Exposure(object):
                 darkTime = self.expTime + 2*0.38
         self.darkTime = darkTime
         
-        if cmd is None:
-            cmd = self.cmd
-            
-        def rowCB(line, image, errorMsg="OK", cmd=cmd, **kwargs):
-            imageHeight = image.shape[0]
-            everyNRows = 250
-            if (line % everyNRows != 0) and (line < imageHeight-1):
-                return
-            cmd.inform('readRows=%d,%d' % (line, imageHeight))
-
-        if self.exposureState != 'integrating':
-            cmd.warn('text="reading out detector in odd state: %s"' % (str(self)))
-        if not hasattr(self, 'headerCards'):
-            self.grabHeaderKeys(cmd)
-            
-        self._setExposureState('reading', cmd=cmd)
         if doRun:
+            self.timecards.end(expTime=self.expTime)
+            self.finishHeaderKeys(cmd, visit)
             im, _ = ccdFuncs.readout(self.imtype, expTime=self.expTime,
                                      darkTime=self.darkTime,
                                      ccd=self.ccd, feeControl=self.fee,
