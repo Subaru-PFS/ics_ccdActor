@@ -52,6 +52,7 @@ class Exposure(object):
         self.exposureState = "idle"
         self.logger = logging.getLogger('exposure')
         self.timecards = None
+        self.headerCards = None
         
         self.pleaseStop = False
         
@@ -190,8 +191,10 @@ class Exposure(object):
 
         if self.exposureState != 'integrating':
             cmd.warn('text="reading out detector in odd state: %s"' % (str(self)))
-        if not hasattr(self, 'headerCards'):
+        if self.headerCards is None:
             self.grabStartingHeaderKeys(cmd)
+        if self.timecards is None:
+            self.timecards = timecards.TimeCards()
             
         self._setExposureState('reading', cmd=cmd)
         if expTime is None:

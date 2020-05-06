@@ -185,7 +185,7 @@ class CcdCmd(object):
 
     def read(self, cmd, imtype=None, doFinish=True,
              nrows=None, ncols=None,
-             doModes=True, doFeeCards=True):
+             doModes=True, doFeeCards=False):
         """ Readout the detector and put it in idle mode. """
 
         cmdKeys = cmd.cmd.keywords
@@ -209,6 +209,7 @@ class CcdCmd(object):
         doRun = 'nope' not in cmdKeys
         comment = cmdKeys['comment'].values[0] if 'comment' in cmdKeys else ''
         exptime = cmdKeys['exptime'].values[0] if 'exptime' in cmdKeys else None
+        obstime = cmdKeys['obstime'].values[0] if 'obstime' in cmdKeys else None
         darktime = cmdKeys['darktime'].values[0] if 'darktime' in cmdKeys else None
         visit = cmdKeys['visit'].values[0] if 'visit' in cmdKeys else None
         
@@ -227,7 +228,7 @@ class CcdCmd(object):
             pass                # Old ADC code (7.40) does not have the attribute.
         
         exp.readout(imtype, exptime, darkTime=darktime,
-                    visit=visit,
+                    visit=visit, obstime=obstime,
                     nrows=nrows, ncols=ncols,
                     doFeeCards=doFeeCards, doModes=doModes,
                     comment=comment, doRun=doRun, cmd=cmd)
