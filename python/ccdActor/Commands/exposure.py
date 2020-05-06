@@ -143,6 +143,12 @@ class Exposure(object):
 
         """
 
+        path = self.actor.butler.getPath('spsFile', visit=visit)
+        cmd.debug(f'text="path for {visit}: {path}"')
+        pathDir = path.parent
+        pathDir.mkdir(mode=0o2755, parents=True, exist_ok=True)
+        return path
+    
         path = os.path.join('/data', 'pfs', time.strftime('%Y-%m-%d'))
         path = os.path.expandvars(os.path.expanduser(path))
         if not os.path.isdir(path):

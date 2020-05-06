@@ -8,7 +8,8 @@ import socket
 from twisted.internet import reactor
 
 import actorcore.ICC
-from pfscore import spectroIds
+from pfs.utils import spectroIds
+import pfs.utils.butler as pfsButler
 
 class OurActor(actorcore.ICC.ICC):
     def __init__(self, name=None, site=None,
@@ -62,12 +63,13 @@ class OurActor(actorcore.ICC.ICC):
             self.attachAllControllers()
             self.everConnected = True
 
-            models = [m % self.ids.idDict for m in ('gen2', 'ccd_%(camName)s', 'dcb', 'xcu_%(camName)s', 
+            models = [m % self.ids.idDict for m in ('gen2', 'pfilamps', 'scr',
+                                                    'ccd_%(camName)s', 'dcb', 'xcu_%(camName)s', 
                                                     'enu_%(specName)s')]
             self.logger.info('adding models: %s', models)
             self.addModels(models)
             self.logger.info('added models: %s', self.models.keys())
-
+            self.butler = pfsButler.Butler(specIds=self.ids)
             
     def statusLoop(self, controller):
         try:
