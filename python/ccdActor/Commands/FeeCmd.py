@@ -25,6 +25,7 @@ class FeeCmd(object):
             ('fee', '@raw', self.raw),
             ('fee', 'download <pathname>', self.download),
             ('fee', 'bootstrap <pathname>', self.bootstrap),
+            ('fee', 'sendImage <pathname> [@doWait] [@sendReboot] [@straightToCode]', self.sendImage),
             ('fee', 'calibrate', self.calibrate),
             ('fee', 'status [@(serial)] [@(temps)] [@(bias)] [@(voltage)] [@(offset)] [@(preset)]', self.status),
             ('fee', 'test1', self.test1),
@@ -171,6 +172,22 @@ class FeeCmd(object):
         cmd.inform('text="fee calibrated..."')
 
         self.status(cmd)
+
+    def sendImage(self, cmd):
+        """ Upload new firmware to interlock board. """
+
+        cmdKeys = cmd.cmd.keywords
+        path = cmdKeys['pathname'].values[0]
+        doWait = 'doWait' in cmdKeys
+        sendReboot = 'sendReboot' in cmdKeys
+        straightToCode = 'straightToCode' in cmdKeys
+
+        fee = self.actor.fee
+        fee.sendImage(path, verbose=True, doWait=doWait,
+                      sendReboot=sendReboot,
+                      straightToCode=straightToCode,
+                      cmd=cmd)
+        cmd.finish()
 
     def download(self, cmd):
         """ Download firmware. """
