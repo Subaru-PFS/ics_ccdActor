@@ -149,17 +149,6 @@ class Exposure(object):
         pathDir = path.parent
         pathDir.mkdir(mode=0o2755, parents=True, exist_ok=True)
         return path
-    
-        path = os.path.join('/data', 'pfs', time.strftime('%Y-%m-%d'))
-        path = os.path.expandvars(os.path.expanduser(path))
-        if not os.path.isdir(path):
-            os.makedirs(path, 0o755)
-
-        ids = self.actor.ids
-        filename = 'PF%sA%06d%d%d.fits' % (ids.site, visit,
-                                           ids.specNum, self.armNum(cmd))
-
-        return os.path.join(path, filename)
 
     def readout(self, imtype=None, expTime=None, darkTime=None,
                 visit=None, obstime=None, comment='',
