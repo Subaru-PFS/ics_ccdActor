@@ -2,6 +2,7 @@ from importlib import reload
 
 import logging
 import os
+import pathlib
 import time
 import threading
 
@@ -217,14 +218,27 @@ class Exposure(object):
             filepath = "/no/such/dir/nosuchfile.fits"
             for c in self.headerCards:
                 cmd.inform('text="header card: %s"' % (str(c)))
-                
-        dirname, filename = os.path.split(filepath)
-        rootDir, dateDir = os.path.split(dirname)
+
+        filepath = pathlib.Path(filepath)
+        filename = filepath.name
+
+        # This is hideous. Need a proper splitter. Will be acceptable
+        # when we dror filepath and thus the rootDir.
+        rootDir = filepath.parents[2]
+        dateDir = filepath.parent.parent.name
 
         self._setExposureState('idle', cmd=cmd)
         cmd.inform('filepath=%s,%s,%s' % (qstr(rootDir),
                                           qstr(dateDir),
                                           qstr(filename)))
+
+
+        ids = self.actor.ids.idDict
+        cmd.inform('spsFileIds=%s,%s,%d,%d,%d' % (ids['camName'],
+                                                  qstr(dateDir),
+                                                  visit,
+                                                  ids['spectrograph'],
+                                                  ids['armNum']))
 
         return im, filepath
 
