@@ -334,8 +334,10 @@ class Exposure(object):
         allCards = []
         allCards.append(dict(name='DATA-TYP', value=self.imtype.upper(), comment='Subaru-style exposure type'))
         allCards.append(dict(name='W_VISIT', value=visit, comment='PFS exposure visit number'))
-        allCards.append(dict(name='W_ARM', value=self.actor.ids.arm, comment='Spectrograph arm'))
+        allCards.append(dict(name='W_ARM', value=self.armNum(cmd), comment='Spectrograph arm 1=b, 2=r, 3=n, 4=medRed'))
         allCards.append(dict(name='W_SPMOD', value=self.actor.ids.specNum, comment='Spectrograph module'))
+        allCards.append(dict(name='FRAMEID', value=f'PFSA{visit:06d}00', comment='Sequence number in archive'))
+        allCards.append(dict(name='EXP-ID', value=f'PFSE00{visit:06d}', comment='PFS exposure visit number'))
         allCards.append(dict(name='DETECTOR', value=detectorId, comment='Name of the detector/CCD'))
         allCards.append(dict(name='GAIN', value=gain, comment='[e-/ADU] AD conversion factor'))
         allCards.append(dict(name='DET-TMP', value=detectorTemp, comment='[degC] Detector temperature'))
