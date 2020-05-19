@@ -145,7 +145,8 @@ class Exposure(object):
 
         """
 
-        path = self.actor.butler.getPath('spsFile', visit=visit)
+        armNum = self.armNum(cmd)
+        path = self.actor.butler.getPath('spsFile', visit=visit, armNum=armNum)
         cmd.debug(f'text="path for {visit}: {path}"')
         pathDir = path.parent
         pathDir.mkdir(mode=0o2755, parents=True, exist_ok=True)
