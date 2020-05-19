@@ -238,7 +238,7 @@ class Exposure(object):
                                                   qstr(dateDir),
                                                   visit,
                                                   ids['spectrograph'],
-                                                  ids['armNum']))
+                                                  self.armNum()))
 
         return im, filepath
 
