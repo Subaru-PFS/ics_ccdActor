@@ -56,6 +56,16 @@ class OurActor(actorcore.ICC.ICC):
         enuName = 'enu_%(specName)s' % self.ids.idDict
         return self.models[enuName]
     
+    @property
+    def ccdModel(self):
+        ccdName = 'ccd_%(camName)s' % self.ids.idDict
+        return self.models[ccdName]
+
+    @property
+    def xcuModel(self):
+        xcuName = 'xcu_%(camName)s' % self.ids.idDict
+        return self.models[xcuName]
+
     def connectionMade(self):
         if self.everConnected is False:
             logging.info("Attaching all controllers...")

@@ -327,9 +327,14 @@ class Exposure(object):
 
         timecards = self.timecards.getCards()
 
-        gain = 1.0
+        gain = 1.3
         detectorId = self.actor.ids.camName
-        detectorTemp = 9998.0
+        try:
+            xcuModel = self.actor.xcuModel
+            detectorTemp = xcuModel.keyVarDict['visTemps'].getValue()[-1]
+        except Exception as e:
+            cmd.warn(f'text="failed to get detector temp for Subaru: {e}"')
+            detectorTemp = 9998.0
         
         allCards = []
         allCards.append(dict(name='DATA-TYP', value=self.imtype.upper(), comment='Subaru-style exposure type'))
