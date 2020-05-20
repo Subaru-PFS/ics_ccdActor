@@ -3,7 +3,7 @@ from importlib import reload
 import logging
 
 import fpga.ccd
-from pfscore import spectroIds
+from pfs.utils import spectroIds
 
 reload(fpga.ccd)
 
