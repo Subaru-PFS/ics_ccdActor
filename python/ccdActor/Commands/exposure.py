@@ -243,6 +243,17 @@ class Exposure(object):
 
         return im, filepath
 
+    def getImageCards(self, cmd=None):
+        """Return the FITS cards for the image HDU, WCS, basically.
+
+        We do not et have a WCS, so only return the required Subaru cards.
+        """
+
+        allCards = []
+        allCards.append(dict(name='BIN-FCT1', value=1, comment='X-axis binning'))
+        allCards.append(dict(name='BIN-FCT2', value=1, comment='Y-axis binning'))
+        return allCards
+
     def writeImageFile(self, im, filepath, visit, addCards=None, comment=None, cmd=None):
         """ Actually write the FITS file. 
 
@@ -279,13 +290,14 @@ class Exposure(object):
         if addCards is not None:
             cards.extend(addCards)
         cards.extend(self.headerCards)
-            
+
         try:
             hdr = fitsio.FITSHDR(cards)
             fitsFile = fitsio.FITS(str(filepath), 'rw')
             fitsFile.write(None, header=hdr)
             fitsFile[-1].write_checksum()
-            fitsFile.write(im, extname="image", compress='RICE')
+            imHdr = fitsio.FITSHDR(self.getImageCards(cmd))
+            fitsFile.write(im, extname="image", header=imHdr, compress='RICE')
             fitsFile[-1].write_checksum()
             fitsFile.close()
         except Exception as e:
