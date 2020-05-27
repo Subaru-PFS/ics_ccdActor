@@ -316,23 +316,80 @@ class Exposure(object):
         """ Gather FITS cards from all actors we are interested in. """
 
         cmd.debug('text="fetching MHS cards..."')
-        cards = fitsUtils.gatherHeaderCards(cmd, self.actor, shortNames=True)
+        modelNames = list(self.actor.models.keys())
+        modelNames.remove(self.actor.ccdModelName)
+        cards = fitsUtils.gatherHeaderCards(cmd, self.actor,
+                                            modelNames=modelNames,shortNames=True)
         cmd.debug('text="fetched %d MHS cards..."' % (len(cards)))
 
         return cards
 
+    def _grabFirstFeeCards(self, cmd):
+        cards = []
+        try:
+            fee = self.actor.fee
+            ccdKeys = self.actor.ccdModel.keyVarDict
+
+            fee.getCommandStatus('voltage')
+            fee.getCommandStatus('bias')
+
+        except Exception as e:
+            cmd.warn(f'text="could not fetch new FEE cards: {e}"')
+            return cards
+
+        try:
+            voltages = ('3V3M','3V3', '5VP','5VN','5VPpa', '5VNpa',
+                        '12VP', '12VN', '24VN', '54VP')
+            ccdKeys['feeVoltages'].set([fee.status[f'voltage.{v}'] for v in voltages])
+        except Exception as e:
+            cmd.warn(f'text="could not update FEE cards: {e}"')
+            return cards
+
+        return cards
+
+    def _grabLastFeeCards(self, cmd):
+        cards = []
+        try:
+            fee = self.actor.fee
+            ccdKeys = self.actor.ccdModel.keyVarDict
+
+            #fee.getCommandStatus('voltage')
+            #status = fee.getCommandStatus('bias')
+
+        except Exception as e:
+            cmd.warn(f'text="could not fetch FEE cards: {e}"')
+            return cards
+
+        try:
+            voltages = ('3V3M','3V3', '5VP','5VN','5VPpa', '5VNpa',
+                        '12VP', '12VN', '24VN', '54VP')
+            #ccdKeys.feeVoltages.set([status[f'bias.{v}'] for v in voltages])
+        except Exception as e:
+            cmd.warn(f'text="could not update FEE cards: {e}"')
+            return cards
+
+        try:
+            cards = fitsUtils.gatherHeaderCards(cmd, self.actor,
+                                                modelNames=[self.actor.ccdModelName],
+                                                shortNames=True)
+        except Exception as e:
+            cmd.warn(f'text="could not gather ccdModel cards: {e}"')
+            return cards
+
+        return cards
+
     def grabStartingHeaderKeys(self, cmd):
-        """ Must not block! """
+        """ Start the header. Called right after wipe is finished and integration started. Must not block! """
 
         if cmd is None:
             cmd = self.cmd
 
         self.headerCards = []
         self.headerCards.extend(self._getInstHeader(cmd))
-        self.headerCards.extend(self._grabInternalCards())
+        self.headerCards.extend(self._grabFirstFeeCards(cmd))
 
     def finishHeaderKeys(self, cmd, visit):
-        """ Finish the header. Called after readout starts and before it ends. Must not block! """
+        """ Finish the header. Called just before readout starts. Must not block! """
 
         if cmd is None:
             cmd = self.cmd
@@ -370,5 +427,6 @@ class Exposure(object):
         
         allCards.extend(timecards)
         allCards.extend(self.headerCards)
-            
+        allCards.extend(self._grabLastFeeCards(cmd))
+
         self.headerCards = allCards

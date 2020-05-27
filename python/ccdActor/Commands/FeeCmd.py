@@ -98,6 +98,9 @@ class FeeCmd(object):
                 keys = self.actor.fee.getCommandStatus(feeSet)
                 self._status(cmd, keys)
                 anyDone = True
+                if feeSet == 'serial':
+                    keys = self.actor.fee.getCommandStatus('revision')
+                    self._status(cmd, keys)
 
         if not anyDone:
             keys = self.actor.fee.getAllStatus()
