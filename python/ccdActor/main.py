@@ -55,11 +55,14 @@ class OurActor(actorcore.ICC.ICC):
     def enuModel(self):
         enuName = 'enu_%(specName)s' % self.ids.idDict
         return self.models[enuName]
-    
+
+    @property
+    def ccdModelName(self):
+        return 'ccd_%(camName)s' % self.ids.idDict
+
     @property
     def ccdModel(self):
-        ccdName = 'ccd_%(camName)s' % self.ids.idDict
-        return self.models[ccdName]
+        return self.models[self.ccdModelName]
 
     @property
     def xcuModel(self):
