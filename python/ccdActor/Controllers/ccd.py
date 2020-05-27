@@ -30,14 +30,13 @@ class ccd(fpga.ccd.CCD):
             adcMode = 3
             doCorrectSignBit = True
         else:
-            adcMode = 2
+            adcMode = 1
             doCorrectSignBit = False
 
-        fpga.ccd.CCD.__init__(self, ids.specNum, ids.arm, site=ids.site,
-                              adc18bit=adcMode, doCorrectSignBit=doCorrectSignBit)
+        fpga.ccd.CCD.__init__(self, ids.specNum, ids.arm, site=ids.site)
         self.setAdcType(adcMode, doCorrectSignBit=doCorrectSignBit)
         self.setAdcVersion(adcVersion=='new', actor.bcast)
-        actor.bcast.inform('text="FPGA: %s"' % (str(self)))
+        actor.bcast.inform('version_fpga="%s"' % (self.fpgaVersion()))
 
     def stop(self, cmd=None):
         pass
