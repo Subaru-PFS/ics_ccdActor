@@ -20,7 +20,24 @@ class ccd(fpga.ccd.CCD):
         except:
             ids = actor.ids
 
-        fpga.ccd.CCD.__init__(self, ids.specNum, ids.arm, site=ids.site)
+        try:
+            adcVersion = actor.config.get('fee', 'adcVersion')
+            actor.bcast.warn('text="overriding default FPGA/ADC type: %s"' % (adcVersion))
+        except:
+            adcVersion = 'new'
+
+        if adcVersion == 'new':
+            adcMode = 3
+            doCorrectSignBit = True
+        else:
+            adcMode = 2
+            doCorrectSignBit = False
+
+        fpga.ccd.CCD.__init__(self, ids.specNum, ids.arm, site=ids.site,
+                              adc18bit=adcMode, doCorrectSignBit=doCorrectSignBit)
+        self.setAdcType(adcMode, doCorrectSignBit=doCorrectSignBit)
+        self.setAdcVersion(adcVersion=='new', actor.bcast)
+        actor.bcast.inform('text="FPGA: %s"' % (str(self)))
 
     def stop(self, cmd=None):
         pass
