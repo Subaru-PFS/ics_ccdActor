@@ -250,6 +250,7 @@ class Exposure(object):
         """
 
         allCards = []
+        allCards.append(dict(name='INHERIT', value=True, comment='Recommend using PHDU cards'))
         allCards.append(dict(name='BIN-FCT1', value=1, comment='X-axis binning'))
         allCards.append(dict(name='BIN-FCT2', value=1, comment='Y-axis binning'))
         return allCards
