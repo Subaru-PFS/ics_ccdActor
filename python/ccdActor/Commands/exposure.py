@@ -405,15 +405,18 @@ class Exposure(object):
         except Exception as e:
             cmd.warn(f'text="failed to get detector temp for Subaru: {e}"')
             detectorTemp = 9998.0
-        
+
+        imtype = self.imtype.upper()
+        if imtype == 'ARC':
+            imtype = 'COMPARISON'
         allCards = []
-        allCards.append(dict(name='DATA-TYP', value=self.imtype.upper(), comment='Subaru-style exposure type'))
+        allCards.append(dict(name='DATA-TYP', value=imtype, comment='Subaru-style exposure type'))
         allCards.append(dict(name='FRAMEID', value=f'PFSA{visit:06d}00', comment='Sequence number in archive'))
         allCards.append(dict(name='EXP-ID', value=f'PFSE00{visit:06d}', comment='PFS exposure visit number'))
         allCards.append(dict(name='DETECTOR', value=detectorId, comment='Name of the detector/CCD'))
         allCards.append(dict(name='GAIN', value=gain, comment='[e-/ADU] AD conversion factor'))
-        allCards.append(dict(name='DET-TMP', value=detectorTemp, comment='[degC] Detector temperature'))
-
+        allCards.append(dict(name='DET-TMP', value=detectorTemp, comment='[K] Detector temperature'))
+        allCards.append(dict(name='DISPAXIS', value=2, comment='Dispersion axis (along columns)'))
         allCards.append(dict(name='COMMENT', value='################################ PFS main IDs'))
         allCards.append(dict(name='W_VISIT', value=visit, comment='PFS exposure visit number'))
         allCards.append(dict(name='W_ARM', value=self.armNum(cmd), comment='Spectrograph arm 1=b, 2=r, 3=n, 4=medRed'))
@@ -422,9 +425,9 @@ class Exposure(object):
 
         allCards.append(dict(name='COMMENT', value='################################ Time cards'))
         allCards.append(dict(name='EXPTIME', value=np.round(float(self.expTime), 3),
-                             comment='Usually the measured time from the shutter'))
+                             comment='[s] Estimate of time detector was exposed to light'))
         allCards.append(dict(name='DARKTIME', value=np.round(float(self.darkTime), 3),
-                             comment='EXPTIME plus shutter transit and pauses'))
+                             comment='[s] Estimate of time between wipe and readout'))
         
         allCards.extend(timecards)
         allCards.extend(self.headerCards)
