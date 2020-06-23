@@ -246,11 +246,13 @@ class Exposure(object):
     def getImageCards(self, cmd=None):
         """Return the FITS cards for the image HDU, WCS, basically.
 
-        We do not et have a WCS, so only return the required Subaru cards.
+        We do not yet have a WCS, so only return the required Subaru cards.
         """
 
         allCards = []
         allCards.append(dict(name='INHERIT', value=True, comment='Recommend using PHDU cards'))
+        allCards.append(dict(name='BUNIT', value="ADU", comment='Pixel units for rescaled data'))
+        allCards.append(dict(name='BLANK', value=-32768, comment='Unscaled value used for invalid pixels'))
         allCards.append(dict(name='BIN-FCT1', value=1, comment='X-axis binning'))
         allCards.append(dict(name='BIN-FCT2', value=1, comment='Y-axis binning'))
         return allCards
