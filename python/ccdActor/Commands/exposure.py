@@ -411,6 +411,12 @@ class Exposure(object):
         imtype = self.imtype.upper()
         if imtype == 'ARC':
             imtype = 'COMPARISON'
+
+        try:
+            detId = self.actor.ids.idDict['fpaId']
+        except Exception as e:
+            cmd.warn(f'text="failed to get FPA id: {e}"')
+            detId = -1
         allCards = []
         allCards.append(dict(name='DATA-TYP', value=imtype, comment='Subaru-style exposure type'))
         allCards.append(dict(name='FRAMEID', value=f'PFSA{visit:06d}00', comment='Sequence number in archive'))
@@ -418,6 +424,7 @@ class Exposure(object):
         allCards.append(dict(name='DETECTOR', value=detectorId, comment='Name of the detector/CCD'))
         allCards.append(dict(name='GAIN', value=gain, comment='[e-/ADU] AD conversion factor'))
         allCards.append(dict(name='DET-TMP', value=detectorTemp, comment='[K] Detector temperature'))
+        allCards.append(dict(name='DET-ID', value=detId, comment='Subaru FPA ID for this spectrogram and arm. Matches DRP id; 0-11'))
         allCards.append(dict(name='DISPAXIS', value=2, comment='Dispersion axis (along columns)'))
         allCards.append(dict(name='COMMENT', value='################################ PFS main IDs'))
         allCards.append(dict(name='W_VISIT', value=visit, comment='PFS exposure visit number'))
