@@ -76,7 +76,7 @@ class OurActor(actorcore.ICC.ICC):
             self.attachAllControllers()
             self.everConnected = True
 
-            models = [m % self.ids.idDict for m in ('gen2', 'scr', 'pfilamps', 'dcb', 'sps',
+            models = [m % self.ids.idDict for m in ('gen2', 'iic', 'pfilamps', 'dcb', 'sps', 'scr',
                                                     'ccd_%(camName)s', 'xcu_%(camName)s', 
                                                     'enu_%(specName)s')]
             self.logger.info('adding models: %s', models)
