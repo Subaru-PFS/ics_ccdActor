@@ -417,6 +417,9 @@ class Exposure(object):
         except Exception as e:
             cmd.warn(f'text="failed to get FPA id: {e}"')
             detId = -1
+
+        darkTime = np.round(float(max(self.expTime, self.darkTime)), 3)
+
         allCards = []
         allCards.append(dict(name='DATA-TYP', value=imtype, comment='Subaru-style exposure type'))
         allCards.append(dict(name='FRAMEID', value=f'PFSA{visit:06d}00', comment='Sequence number in archive'))
@@ -435,7 +438,7 @@ class Exposure(object):
         allCards.append(dict(name='COMMENT', value='################################ Time cards'))
         allCards.append(dict(name='EXPTIME', value=np.round(float(self.expTime), 3),
                              comment='[s] Estimate of time detector was exposed to light'))
-        allCards.append(dict(name='DARKTIME', value=np.round(float(self.darkTime), 3),
+        allCards.append(dict(name='DARKTIME', value=darkTime,
                              comment='[s] Estimate of time between wipe and readout'))
         
         allCards.extend(timecards)
