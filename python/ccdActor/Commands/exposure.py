@@ -427,7 +427,7 @@ class Exposure(object):
         allCards.append(dict(name='DETECTOR', value=detectorId, comment='Name of the detector/CCD'))
         allCards.append(dict(name='GAIN', value=gain, comment='[e-/ADU] AD conversion factor'))
         allCards.append(dict(name='DET-TMP', value=detectorTemp, comment='[K] Detector temperature'))
-        allCards.append(dict(name='DET-ID', value=detId, comment='Subaru FPA ID for this spectrogram and arm. Matches DRP id; 0-11'))
+        allCards.append(dict(name='DET-ID', value=detId, comment='Subaru/DRP FPA ID for this module and arm'))
         allCards.append(dict(name='DISPAXIS', value=2, comment='Dispersion axis (along columns)'))
         allCards.append(dict(name='COMMENT', value='################################ PFS main IDs'))
         allCards.append(dict(name='W_VISIT', value=visit, comment='PFS exposure visit number'))
@@ -437,9 +437,9 @@ class Exposure(object):
 
         allCards.append(dict(name='COMMENT', value='################################ Time cards'))
         allCards.append(dict(name='EXPTIME', value=np.round(float(self.expTime), 3),
-                             comment='[s] Estimate of time detector was exposed to light'))
+                             comment='[s] Time detector was exposed to light'))
         allCards.append(dict(name='DARKTIME', value=darkTime,
-                             comment='[s] Estimate of time between wipe and readout'))
+                             comment='[s] Time between wipe and readout'))
         
         allCards.extend(timecards)
         allCards.extend(self.headerCards)
