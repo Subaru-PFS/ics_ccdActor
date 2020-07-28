@@ -341,15 +341,14 @@ class CcdCmd(object):
     def setAdcMode(self, cmd):
         """ Set the ADC readout mode (msb, lsb, or mid) """
 
-        if 'msb' in cmd.cmd.keywords:
-            mode = 3
-        elif 'mid' in cmd.cmd.keywords:
-            mode = 1
-        elif 'lsb' in cmd.cmd.keywords:
-            mode = 0
+        mode = 'default'
+        for m in {'msb', 'mid', 'lsb'}:
+            if m in cmd.cmd.keywords:
+                mode = m
+                break
 
         self.ccd.setAdcType(mode)
-        cmd.finish(f'text="set adc mode to {mode}: {str(self.ccd)}"')
+        cmd.finish(f'text="configured ADC mode {mode}: {str(self.ccd)}"')
 
     def setClocks(self, cmd):
         """ Set/clear given clock lines. """
