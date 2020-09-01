@@ -391,6 +391,46 @@ class Exposure(object):
         self.headerCards.extend(self._getInstHeader(cmd))
         self.headerCards.extend(self._grabFirstFeeCards(cmd))
 
+    def genBeamConfigCards(self, cmd, visit):
+        """Generate header cards and synthetic date for the state of the beam-affecting hardware.
+        """
+
+        anyBad = False
+        fpaDate = 9998.0
+        hexapodDate = 9998.0
+        gratingDate = 9998.0
+
+        try:
+            xcuModel = self.actor.xcuModel
+            fpaDate = xcuModel.keyVarDict['fpaMoved'].getValue()[-1]
+        except Exception as e:
+            cmd.warn(f'text="failed to get xcu beam dates: {e}"')
+            anyBad = True
+
+        try:
+            enuModel = self.actor.enuModel
+            gratingDate = enuModel.keyVarDict['gratingMoved'].getValue()[-1]
+            hexapodDate = enuModel.keyVarDict['hexapodMoved'].getValue()[-1]
+        except Exception as e:
+            cmd.warn(f'text="failed to get enu beam dates: {e}"')
+            anyBad = True
+
+        if anyBad:
+            beamConfigDate = 9998.0
+            cmd.warn(f'beamConfigDate={visit},{beamConfigDate:0.6f}')
+        else:
+            beamConfigDate = max(fpaDate, hexapodDate, gratingDate)
+            cmd.info(f'beamConfigDate={visit},{beamConfigDate:0.6f}')
+
+        allCards = []
+        allCards.append(dict(name='COMMENT', value='################################ Beam configuration'))
+        allCards.append(dict(name='W_SBEMDT', value=beamConfigDate, comment='[day] Beam configuration time'))
+        allCards.append(dict(name='W_SFPADT', value=fpaDate, comment='[day] Last FPA move time'))
+        allCards.append(dict(name='W_SHEXDT', value=hexapodDate, comment='[day] Last hexapod move time'))
+        allCards.append(dict(name='W_SGRTDT', value=gratingDate, comment='[day] Last grating move time'))
+
+        return allCards
+
     def finishHeaderKeys(self, cmd, visit):
         """ Finish the header. Called just before readout starts. Must not block! """
 
@@ -418,6 +458,8 @@ class Exposure(object):
             cmd.warn(f'text="failed to get FPA id: {e}"')
             detId = -1
 
+        beamConfigCards = self.genBeamConfigCards(visit)
+
         darkTime = np.round(float(max(self.expTime, self.darkTime)), 3)
 
         allCards = []
@@ -440,9 +482,10 @@ class Exposure(object):
                              comment='[s] Time detector was exposed to light'))
         allCards.append(dict(name='DARKTIME', value=darkTime,
                              comment='[s] Time between wipe and readout'))
-        
+
         allCards.extend(timecards)
         allCards.extend(self.headerCards)
         allCards.extend(self._grabLastFeeCards(cmd))
+        allCards.extend(beamConfigCards)
 
         self.headerCards = allCards
