@@ -458,7 +458,7 @@ class Exposure(object):
             cmd.warn(f'text="failed to get FPA id: {e}"')
             detId = -1
 
-        beamConfigCards = self.genBeamConfigCards(visit)
+        beamConfigCards = self.genBeamConfigCards(cmd, visit)
 
         darkTime = np.round(float(max(self.expTime, self.darkTime)), 3)
 
