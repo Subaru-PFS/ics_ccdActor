@@ -402,15 +402,15 @@ class Exposure(object):
 
         try:
             xcuModel = self.actor.xcuModel
-            fpaDate = xcuModel.keyVarDict['fpaMoved'].getValue()[-1]
+            fpaDate = xcuModel.keyVarDict['fpaMoved'].getValue()
         except Exception as e:
             cmd.warn(f'text="failed to get xcu beam dates: {e}"')
             anyBad = True
 
         try:
             enuModel = self.actor.enuModel
-            gratingDate = enuModel.keyVarDict['gratingMoved'].getValue()[-1]
-            hexapodDate = enuModel.keyVarDict['hexapodMoved'].getValue()[-1]
+            gratingDate = enuModel.keyVarDict['gratingMoved'].getValue()
+            hexapodDate = enuModel.keyVarDict['hexapodMoved'].getValue()
         except Exception as e:
             cmd.warn(f'text="failed to get enu beam dates: {e}"')
             anyBad = True
