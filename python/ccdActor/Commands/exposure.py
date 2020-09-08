@@ -420,7 +420,7 @@ class Exposure(object):
             cmd.warn(f'beamConfigDate={visit},{beamConfigDate:0.6f}')
         else:
             beamConfigDate = max(fpaDate, hexapodDate, gratingDate)
-            cmd.info(f'beamConfigDate={visit},{beamConfigDate:0.6f}')
+            cmd.inform(f'beamConfigDate={visit},{beamConfigDate:0.6f}')
 
         allCards = []
         allCards.append(dict(name='COMMENT', value='################################ Beam configuration'))
