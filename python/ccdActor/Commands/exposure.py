@@ -210,6 +210,7 @@ class Exposure(object):
                                      comment=self.comment,
                                      doSave=False,
                                      rowStatsFunc=rowCB)
+            im = self.fixupImage(im, cmd)
 
             filepath = self.makeFilePath(visit, cmd)
             self.writeImageFile(im, filepath, visit,
@@ -242,6 +243,36 @@ class Exposure(object):
                                                   self.armNum(cmd)))
 
         return im, filepath
+
+    def fixupImage(self, im, cmd):
+        """Apply any post-readout corrections to images.
+
+        Current used for:
+         - INSTRM-1100: swap b2 amps: 0_1 (idx=1) <-> 1_2 (idx=6)
+
+        Args
+        ----
+        im : `ndarray`
+          raw image to process, as just read out. May be modified in place.
+        cmd : `actorcore.Command`
+          Command we can send commentary to.
+
+        Returns
+        -------
+        im : `ndarray`
+          raw image to write out.
+        """
+
+        if self.actor.ids.camName == 'b2':
+            self.logger.info('swapping b2 amps')
+            cmd.debug('text="fixup: swapping b2 amps"')
+
+            ampWidth = im.shape[1] // 8
+            amp_0_1 = im[:, 1*ampWidth:2*ampWidth].copy()
+            im[:, 1*ampWidth:2*ampWidth] = im[:, 6*ampWidth:7*ampWidth]
+            im[:, 6*ampWidth:7*ampWidth] = amp_0_1
+
+        return im
 
     def getImageCards(self, cmd=None):
         """Return the FITS cards for the image HDU, WCS, basically.
