@@ -61,6 +61,10 @@ class Exposure(object):
         return "Exposure(imtype=%s, expTime=%s, startedAt=%s)" % (self.imtype,
                                                                   self.expTime,
                                                                   self.startTime)
+    def setFee(self, newFee, cmd):
+        self.fee = newFee
+        cmd.warn('text="replacing FEE instance for some reason."')
+
     def _setExposureState(self, newState, cmd=None):
         if cmd is None:
             cmd = self.cmd
