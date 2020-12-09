@@ -33,7 +33,7 @@ class CcdCmd(object):
         self.vocab = [
             ('wipe', '[<nrows>] [<ncols>]', self.wipe),
             ('read',
-             '[@(bias|dark|flat|arc|object|junk)] [<nrows>] [<ncols>] [<visit>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope]',
+             '[@(bias|dark|flat|arc|object|junk)] [<nrows>] [<ncols>] [<visit>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff]',
              self.read),
             ('clock','[<nrows>] <ncols>', self.clock),
             ('revread','[<nrows>] [<binning>]', self.revRead),
@@ -212,6 +212,7 @@ class CcdCmd(object):
         obstime = cmdKeys['obstime'].values[0] if 'obstime' in cmdKeys else None
         darktime = cmdKeys['darktime'].values[0] if 'darktime' in cmdKeys else None
         visit = cmdKeys['visit'].values[0] if 'visit' in cmdKeys else None
+        swOffTweak = 'swoff' in cmdKeys
         
         try:
             exp = self._getExposure(cmd)
@@ -226,7 +227,11 @@ class CcdCmd(object):
                 cmd.warn(f'text="reading with held clocks: on={self.ccd.holdOn} off={self.ccd.holdOff}"')
         except AttributeError:
             pass                # Old ADC code (7.40) does not have the attribute.
-        
+
+        if swOffTweak:
+            cmd.warn('text="disabling SW on CCD1, to identify CCD amps."')
+            exp.setFee(ccdFuncs.disableSWOnCcdTweak(exp.fee), cmd)
+
         exp.readout(imtype, exptime, darkTime=darktime,
                     visit=visit, obstime=obstime,
                     nrows=nrows, ncols=ncols,
