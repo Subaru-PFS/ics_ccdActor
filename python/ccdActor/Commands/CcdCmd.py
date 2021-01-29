@@ -94,6 +94,8 @@ class CcdCmd(object):
 
         self.initCallbacks()
 
+        self.genStatus()
+
     @property
     def ccd(self):
         return self.actor.ccd
@@ -101,6 +103,15 @@ class CcdCmd(object):
     @property
     def fee(self):
         return self.actor.fee
+
+    def genStatus(self, cmd=None):
+        if cmd is None:
+            cmd = self.actor.bcast
+
+        if self.actor.exposure is None:
+            exposure.Exposure.genStatus(cmd)
+        else:
+            self.exposure.genStatus()
 
     def initCallbacks(self):
         """ """
