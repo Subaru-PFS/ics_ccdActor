@@ -41,6 +41,8 @@ class ExpThread(threading.Thread):
         callback()
         
 class Exposure(object):
+    exposureState = 'idle'
+
     def __init__(self, actor, imtype, expTime, ccd, fee, cmd=None, comment=''):
         self.actor = actor
         self.ccd = ccd
@@ -54,7 +56,8 @@ class Exposure(object):
         self.logger = logging.getLogger('exposure')
         self.timecards = None
         self.headerCards = None
-        
+        self.genStatus = self.__instanceGetStatus
+
         self.pleaseStop = False
         
     def __str__(self):
@@ -65,15 +68,43 @@ class Exposure(object):
         self.fee = newFee
         cmd.warn('text="replacing FEE instance for some reason."')
 
+    @classmethod
+    def genStatus(self_or_cls, cmd, state=None):
+        """Generate any status keywords.
+
+        Callable as class or instance method.
+
+        Args
+        ----
+        self_or_cls : *either* self or cls
+          Something which has our state variables.
+        cmd : actorcore.Command
+          where to send status keys
+        """
+
+        if state is None:
+            state = self_or_cls.exposureState
+
+        if state == 'aborted':
+            cmd.warn('exposureState=%s' % (state))
+        else:
+            cmd.inform('exposureState=%s' % (state))
+
+    def __instanceGetStatus(self, cmd=None, state=None):
+        """Generate any status keywords.
+
+        Only useable as instance method.
+        """
+        if cmd is None:
+            cmd = self.cmd
+        self.__class__.genStatus(cmd=cmd, state=state)
+
     def _setExposureState(self, newState, cmd=None):
         if cmd is None:
             cmd = self.cmd
-        if newState == 'aborted':
-            cmd.warn('exposureState=%s' % (newState))
-        else:
-            cmd.inform('exposureState=%s' % (newState))
         self.exposureState = newState
-        
+        self.genStatus(cmd, newState)
+
     def run(self, callback=None):
         if self.exposureState != 'idle':
             raise ExposureIsActive('this exposure is already running: %s' % (self))

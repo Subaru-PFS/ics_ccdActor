@@ -124,6 +124,7 @@ class TopCmd(object):
         if 'all' in cmd.cmd.keywords:
             for c in self.actor.controllers:
                 self.actor.callCommand("%s status" % (c))
+        self.actor.commandSets['CcdCmd'].genStatus(cmd=cmd)
         cmd.inform('text="exposure=%s"' % (self.actor.exposure))
         self.temps(cmd, doFinish=False)
         cmd.finish(self.controllerKey())
