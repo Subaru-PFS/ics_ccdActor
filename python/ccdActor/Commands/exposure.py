@@ -431,9 +431,19 @@ class Exposure(object):
         """
 
         anyBad = False
+        dcbDate = 9998.0
         fpaDate = 9998.0
         hexapodDate = 9998.0
         gratingDate = 9998.0
+
+        try:
+            # When it gets formalized, fetch sps.smNLightSource first, and only
+            # use the dcb date if we are connected.
+            dcbModel = self.actor.models['dcb']
+            dcbDate = dcbModel.keyVarDict['dcbConfigDate'].getValue()
+        except Exception as e:
+            cmd.warn(f'text="failed to get dcb beam dates: {e}"')
+            anyBad = True
 
         try:
             xcuModel = self.actor.xcuModel
@@ -454,12 +464,13 @@ class Exposure(object):
             beamConfigDate = 9998.0
             cmd.warn(f'beamConfigDate={visit},{beamConfigDate:0.6f}')
         else:
-            beamConfigDate = max(fpaDate, hexapodDate, gratingDate)
+            beamConfigDate = max(fpaDate, hexapodDate, gratingDate, dcbDate)
             cmd.inform(f'beamConfigDate={visit},{beamConfigDate:0.6f}')
 
         allCards = []
         allCards.append(dict(name='COMMENT', value='################################ Beam configuration'))
         allCards.append(dict(name='W_SBEMDT', value=beamConfigDate, comment='[day] Beam configuration time'))
+        allCards.append(dict(name='W_SDCBDT', value=dcbDate, comment='[day] Last DCB configuration time'))
         allCards.append(dict(name='W_SFPADT', value=fpaDate, comment='[day] Last FPA move time'))
         allCards.append(dict(name='W_SHEXDT', value=hexapodDate, comment='[day] Last hexapod move time'))
         allCards.append(dict(name='W_SGRTDT', value=gratingDate, comment='[day] Last grating move time'))
