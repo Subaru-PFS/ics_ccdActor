@@ -535,6 +535,41 @@ class Exposure(object):
 
         return cards
 
+    def genPfsDesignCards(self, cmd):
+        """Return the pfsDesign-associated cards.
+
+        For now, switch between the DCB and SuNSS cards. Use the sps.lightSources key
+        to tell us which to use. THIS IS NOT THE FINAL PFS SOLUTION.
+
+        """
+
+        cards = []
+
+        sm = self.actor.ids.specNum
+        try:
+            spsModel = self.actor.models['sps'].keyVarDict
+            lightSource = spsModel[f'sm{sm}LightSource'].getValue()
+        except Exception as e:
+            cmd.warn('text="failed to fetch pfsDesign cards!!! %s"' % (e))
+            return cards
+
+        lightSource = lightSource.lower()
+        if lightSource == 'sunss':
+            designId = 0xdeadbeef
+        elif lightSource == 'dcb':
+            try:
+                model = self.actor.models[lightSource].keyVarDict
+                designId = model['designId'].getValue()
+            except Exception as e:
+                cmd.warn(f'text="failed to get designId for {lightSource}: {e}"')
+                designId = 9998.0
+        else:
+            cmd.warn(f'text="unknown lightsource ({lightSource}) for a designId')
+            designId = 9999.0
+
+        cards.append(dict(name='W_PFDSGN', value=designId, comment=f'pfsDesign, from {lightSource}'))
+        return cards
+
     def finishHeaderKeys(self, cmd, visit):
         """ Finish the header. Called just before readout starts. Must not block! """
 
@@ -564,6 +599,7 @@ class Exposure(object):
 
         beamConfigCards = self.genBeamConfigCards(cmd, visit)
         spectroCards = self.genSpectroCards(cmd)
+        designCards = self.genPfsDesignCards(cmd)
 
         darkTime = np.round(float(max(self.expTime, self.darkTime)), 3)
 
@@ -577,10 +613,12 @@ class Exposure(object):
         allCards.append(dict(name='DET-ID', value=detId, comment='Subaru/DRP FPA ID for this module and arm'))
         allCards.extend(spectroCards)
         allCards.append(dict(name='COMMENT', value='################################ PFS main IDs'))
+
         allCards.append(dict(name='W_VISIT', value=visit, comment='PFS exposure visit number'))
         allCards.append(dict(name='W_ARM', value=self.armNum(cmd), comment='Spectrograph arm 1=b, 2=r, 3=n, 4=medRed'))
         allCards.append(dict(name='W_SPMOD', value=self.actor.ids.specNum, comment='Spectrograph module. 1-4 at Subaru'))
         allCards.append(dict(name='W_SITE', value=self.actor.ids.site, comment='PFS DAQ location: Subaru, Jhu, Lam, Asiaa'))
+        allCards.extend(designCards)
 
         allCards.append(dict(name='COMMENT', value='################################ Time cards'))
         allCards.append(dict(name='EXPTIME', value=np.round(float(self.expTime), 3),
