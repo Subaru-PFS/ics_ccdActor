@@ -1,7 +1,6 @@
 from importlib import reload
 
 import logging
-import os
 import pathlib
 import time
 import threading
@@ -11,9 +10,12 @@ import numpy as np
 import fitsio
 from actorcore.utility import fits as fitsUtils
 from actorcore.utility import timecards
+import pfs.utils.sps.fits as spsFits
 from opscore.utility.qstr import qstr
 import fpga.ccdFuncs as ccdFuncs
+
 reload(fitsUtils)
+reload(spsFits)
 
 class ExposureIsActive(Exception):
     pass
@@ -172,7 +174,17 @@ class Exposure(object):
             cmd.warn(f'text="enu grating position invalid ({rexm}), using low for filename"')
             return 2
             
-            
+    def arm(self, cmd):
+        """Return the correct arm: 'b', 'r', 'm', 'n'.
+
+        For the red cryostats, we have two arms: 'r' for low res,
+        and 'm' for medium res. See .armNum() for details on how this is resolved.
+
+        """
+        arms = {1:'b', 2:'r', 3:'n', 4:'m'}
+        armNum = self.armNum(cmd)
+        return arms[armNum]
+
     def makeFilePath(self, visit, cmd=None):
         """ Fetch next image filename.
 
@@ -508,6 +520,21 @@ class Exposure(object):
 
         return allCards
 
+    def genSpectroCards(self, cmd):
+        """Return the Subaru-specific spectroscopy cards.
+
+        See INSTRM-1022 and INSTRM-578
+        """
+
+        cards = []
+        try:
+            arm = self.arm(cmd)
+            cards = spsFits.getSpsSpectroCards(arm)
+        except Exception as e:
+            cmd.warn('text="failed to fetch Subaru spectro cards: %s"' % (e))
+
+        return cards
+
     def finishHeaderKeys(self, cmd, visit):
         """ Finish the header. Called just before readout starts. Must not block! """
 
@@ -536,6 +563,7 @@ class Exposure(object):
             detId = -1
 
         beamConfigCards = self.genBeamConfigCards(cmd, visit)
+        spectroCards = self.genSpectroCards(cmd)
 
         darkTime = np.round(float(max(self.expTime, self.darkTime)), 3)
 
@@ -547,7 +575,7 @@ class Exposure(object):
         allCards.append(dict(name='GAIN', value=gain, comment='[e-/ADU] AD conversion factor'))
         allCards.append(dict(name='DET-TMP', value=detectorTemp, comment='[K] Detector temperature'))
         allCards.append(dict(name='DET-ID', value=detId, comment='Subaru/DRP FPA ID for this module and arm'))
-        allCards.append(dict(name='DISPAXIS', value=2, comment='Dispersion axis (along columns)'))
+        allCards.extend(spectroCards)
         allCards.append(dict(name='COMMENT', value='################################ PFS main IDs'))
         allCards.append(dict(name='W_VISIT', value=visit, comment='PFS exposure visit number'))
         allCards.append(dict(name='W_ARM', value=self.armNum(cmd), comment='Spectrograph arm 1=b, 2=r, 3=n, 4=medRed'))
