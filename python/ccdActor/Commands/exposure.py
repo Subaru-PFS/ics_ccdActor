@@ -548,23 +548,24 @@ class Exposure(object):
         sm = self.actor.ids.specNum
         try:
             spsModel = self.actor.models['sps'].keyVarDict
-            lightSource = spsModel[f'sm{sm}LightSource'].lower()
+            lightSource = spsModel[f'sm{sm}LightSource'].getValue()
         except Exception as e:
             cmd.warn('text="failed to fetch pfsDesign cards!!! %s"' % (e))
             return cards
 
+        lightSource = lightSource.lower()
         if lightSource == 'sunss':
             designId = 0xdeadbeef
         elif lightSource == 'dcb':
             try:
                 model = self.actor.models[lightSource].keyVarDict
-                designId = model['designId'].getValue()[-1]
+                designId = model['designId'].getValue()
             except Exception as e:
                 cmd.warn(f'text="failed to get designId for {lightSource}: {e}"')
                 designId = 9998.0
-            else:
-                cmd.warn(f'text="unknown lightsource ({lightSource}) for a designId')
-                designId = 9999.0
+        else:
+            cmd.warn(f'text="unknown lightsource ({lightSource}) for a designId')
+            designId = 9999.0
 
         cards.append(dict(name='W_PFDSGN', value=designId, comment=f'pfsDesign, from {lightSource}'))
         return cards
