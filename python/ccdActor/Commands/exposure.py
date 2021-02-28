@@ -550,8 +550,8 @@ class Exposure(object):
             spsModel = self.actor.models['sps'].keyVarDict
             lightSource = spsModel[f'sm{sm}LightSource'].getValue()
         except Exception as e:
-            cmd.warn('text="failed to fetch pfsDesign cards!!! %s"' % (e))
-            return cards
+            cmd.warn('text="failed to fetch lightsource card!!! %s"' % (e))
+            lightSource = "unknown"
 
         lightSource = lightSource.lower()
         if lightSource == 'sunss':
@@ -568,6 +568,7 @@ class Exposure(object):
             designId = 9999.0
 
         cards.append(dict(name='W_PFDSGN', value=designId, comment=f'pfsDesign, from {lightSource}'))
+        cards.append(dict(name='W_LGTSRC', value=lightSource, comment=f'Light source for this module'))
         return cards
 
     def finishHeaderKeys(self, cmd, visit):

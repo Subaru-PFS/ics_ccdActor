@@ -19,7 +19,7 @@ reload(ccdFuncs)
 reload(exposure)
     
 class CcdCmd(object):
-    imTypes = {'bias', 'dark', 'flat', 'arc', 'object'}
+    imTypes = {'bias', 'dark', 'flat', 'arc', 'object', 'domeflat', 'test'}
     
     def __init__(self, actor):
         # This lets us access the rest of the actor.
@@ -33,7 +33,7 @@ class CcdCmd(object):
         self.vocab = [
             ('wipe', '[<nrows>] [<ncols>]', self.wipe),
             ('read',
-             '[@(bias|dark|flat|arc|object|junk)] [<nrows>] [<ncols>] [<visit>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff]',
+             '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff]',
              self.read),
             ('clock','[<nrows>] <ncols>', self.clock),
             ('revread','[<nrows>] [<binning>]', self.revRead),
