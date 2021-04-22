@@ -471,6 +471,14 @@ class Exposure(object):
 
     def genBeamConfigCards(self, cmd, visit):
         """Generate header cards and synthetic date for the state of the beam-affecting hardware.
+
+        Current rules:
+         - light source is whatever single source sps has for this spectro module.
+         - beamConfigDate = max(fpaConfigDate, hexapodConfigDate)
+         - if red, also use gratingMoved date
+         - if either DCB is connected, also use dcbConfigDate
+
+        Generate all cards appropriate for this cryostat and configuration.
         """
 
         anyBad = False
@@ -480,14 +488,14 @@ class Exposure(object):
         gratingDate = 9998.0
 
         lightSource = self.getLightSource(cmd)
-        try:
-            # When it gets formalized, fetch sps.smNLightSource first, and only
-            # use the dcb date if we are connected.
-            dcbModel = self.actor.models['dcb']
-            dcbDate = dcbModel.keyVarDict['dcbConfigDate'].getValue()
-        except Exception as e:
-            cmd.warn(f'text="failed to get dcb beam dates: {e}"')
-            anyBad = True
+        haveDcb = lightSource in {'dcb', 'dcb2'}
+        if haveDcb:
+            try:
+                dcbModel = self.actor.models[lightSource]
+                dcbDate = dcbModel.keyVarDict['dcbConfigDate'].getValue()
+            except Exception as e:
+                cmd.warn(f'text="failed to get {lightSource} beam dates: {e}"')
+                anyBad = True
 
         try:
             xcuModel = self.actor.xcuModel
@@ -498,26 +506,43 @@ class Exposure(object):
 
         try:
             enuModel = self.actor.enuModel
-            gratingDate = enuModel.keyVarDict['gratingMoved'].getValue()
             hexapodDate = enuModel.keyVarDict['hexapodMoved'].getValue()
         except Exception as e:
-            cmd.warn(f'text="failed to get enu beam dates: {e}"')
+            cmd.warn(f'text="failed to get enu hexapod beam date: {e}"')
             anyBad = True
+
+        isRed = self.arm in {'r', 'm'}
+        if isRed:
+            try:
+                enuModel = self.actor.enuModel
+                gratingDate = enuModel.keyVarDict['gratingMoved'].getValue()
+            except Exception as e:
+                cmd.warn(f'text="failed to get enu grating beam dates: {e}"')
+                anyBad = True
 
         if anyBad:
             beamConfigDate = 9998.0
             cmd.warn(f'beamConfigDate={visit},{beamConfigDate:0.6f}')
         else:
-            beamConfigDate = max(fpaDate, hexapodDate, gratingDate, dcbDate)
+            beamConfigDate = max(fpaDate, hexapodDate)
+
+            if isRed:
+                beamConfigDate = max(beamConfigDate, gratingDate)
+
+            if haveDcb:
+                beamConfigDate = max(beamConfigDate, dcbDate)
+
             cmd.inform(f'beamConfigDate={visit},{beamConfigDate:0.6f}')
 
         allCards = []
         allCards.append(dict(name='COMMENT', value='################################ Beam configuration'))
         allCards.append(dict(name='W_SBEMDT', value=beamConfigDate, comment='[day] Beam configuration time'))
-        allCards.append(dict(name='W_SDCBDT', value=dcbDate, comment='[day] Last DCB configuration time'))
         allCards.append(dict(name='W_SFPADT', value=fpaDate, comment='[day] Last FPA move time'))
         allCards.append(dict(name='W_SHEXDT', value=hexapodDate, comment='[day] Last hexapod move time'))
-        allCards.append(dict(name='W_SGRTDT', value=gratingDate, comment='[day] Last grating move time'))
+        if haveDcb:
+            allCards.append(dict(name='W_SDCBDT', value=dcbDate, comment='[day] Last DCB configuration time'))
+        if isRed:
+            allCards.append(dict(name='W_SGRTDT', value=gratingDate, comment='[day] Last grating move time'))
 
         return allCards
 
@@ -562,7 +587,7 @@ class Exposure(object):
         lightSource = self.getLightSource(cmd)
         if lightSource == 'sunss':
             designId = 0xdeadbeef
-        elif lightSource == 'dcb':
+        elif lightSource in {'dcb', 'dcb2'}:
             try:
                 model = self.actor.models[lightSource].keyVarDict
                 designId = model['designId'].getValue()
