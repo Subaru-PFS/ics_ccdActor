@@ -479,6 +479,7 @@ class Exposure(object):
         hexapodDate = 9998.0
         gratingDate = 9998.0
 
+        lightSource = self.getLightSource(cmd)
         try:
             # When it gets formalized, fetch sps.smNLightSource first, and only
             # use the dcb date if we are connected.
@@ -535,6 +536,19 @@ class Exposure(object):
 
         return cards
 
+    def getLightSource(self, cmd):
+        """Return our lightsource (pfi, sunss, dcb, dcb2). """
+
+        sm = self.actor.ids.specNum
+        try:
+            spsModel = self.actor.models['sps'].keyVarDict
+            lightSource = spsModel[f'sm{sm}LightSource'].getValue()
+        except Exception as e:
+            cmd.warn('text="failed to fetch lightsource card!!! %s"' % (e))
+            lightSource = "unknown"
+
+        return lightSource.lower()
+
     def genPfsDesignCards(self, cmd):
         """Return the pfsDesign-associated cards.
 
@@ -545,15 +559,7 @@ class Exposure(object):
 
         cards = []
 
-        sm = self.actor.ids.specNum
-        try:
-            spsModel = self.actor.models['sps'].keyVarDict
-            lightSource = spsModel[f'sm{sm}LightSource'].getValue()
-        except Exception as e:
-            cmd.warn('text="failed to fetch lightsource card!!! %s"' % (e))
-            lightSource = "unknown"
-
-        lightSource = lightSource.lower()
+        lightSource = self.getLightSource(cmd)
         if lightSource == 'sunss':
             designId = 0xdeadbeef
         elif lightSource == 'dcb':
