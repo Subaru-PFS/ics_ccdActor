@@ -396,12 +396,38 @@ class Exposure(object):
     def _getInstHeader(self, cmd):
         """ Gather FITS cards from all actors we are interested in. """
 
-        cmd.debug('text="fetching MHS cards..."')
         modelNames = list(self.actor.models.keys())
         modelNames.remove(self.actor.ccdModelName)
+        cmd.debug(f'text="provisionally fetching MHS cards from {modelNames}"')
+        if 'pfilamps' in modelNames:
+            modelNames.remove('pfilamps')
+        if 'dcb' in modelNames:
+            modelNames.remove('dcb')
+        if 'dcb2' in modelNames:
+            modelNames.remove('dcb2')
+        cmd.debug(f'text="fetching MHS cards from {modelNames}"')
         cards = fitsUtils.gatherHeaderCards(cmd, self.actor,
                                             modelNames=modelNames,shortNames=True)
         cmd.debug('text="fetched %d MHS cards..."' % (len(cards)))
+
+        return cards
+
+    def genEndInstCards(self, cmd):
+        """Gather cards at the start of readout. Calibration lamps, etc. """
+
+        cards = []
+        try:
+            lightSource = self.getLightSource(cmd)
+            if lightSource == 'pfi':
+                modelNames = ['pfilamps']
+            else:
+                modelNames = [lightSource]
+            cmd.debug(f'text="fetching ending MHS cards from {modelNames}"')
+            cards = fitsUtils.gatherHeaderCards(cmd, self.actor,
+                                                modelNames=modelNames,shortNames=True)
+            cmd.debug('text="fetched %d ending MHS cards..."' % (len(cards)))
+        except Exception as e:
+            cmd.warn(f'text="failed to fetch ending cards: {e}"')
 
         return cards
 
@@ -587,6 +613,13 @@ class Exposure(object):
         lightSource = self.getLightSource(cmd)
         if lightSource == 'sunss':
             designId = 0xdeadbeef
+        elif lightSource == 'pfi':
+            try:
+                model = self.actor.models['iic'].keyVarDict
+                designId = model['designId'].getValue()
+            except Exception as e:
+                cmd.warn(f'text="failed to get designId for {lightSource}: {e}"')
+                designId = 9998.0
         elif lightSource in {'dcb', 'dcb2'}:
             try:
                 model = self.actor.models[lightSource].keyVarDict
@@ -622,6 +655,8 @@ class Exposure(object):
         imtype = self.imtype.upper()
         if imtype == 'ARC':
             imtype = 'COMPARISON'
+        elif imtype == 'OBJECT':
+            imtype = 'ACQUISITION'
 
         try:
             detId = self.actor.ids.idDict['fpaId']
@@ -632,6 +667,7 @@ class Exposure(object):
         beamConfigCards = self.genBeamConfigCards(cmd, visit)
         spectroCards = self.genSpectroCards(cmd)
         designCards = self.genPfsDesignCards(cmd)
+        endCards = self.genEndInstCards(cmd)
 
         darkTime = np.round(float(max(self.expTime, self.darkTime)), 3)
 
@@ -659,6 +695,7 @@ class Exposure(object):
                              comment='[s] Time between wipe and readout'))
 
         allCards.extend(timecards)
+        allCards.extend(endCards)
         allCards.extend(self.headerCards)
         allCards.extend(self._grabLastFeeCards(cmd))
         allCards.extend(beamConfigCards)
