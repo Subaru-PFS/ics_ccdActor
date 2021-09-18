@@ -619,20 +619,20 @@ class Exposure(object):
                 designId = model['designId'].getValue()
             except Exception as e:
                 cmd.warn(f'text="failed to get designId for {lightSource}: {e}"')
-                designId = 9998.0
+                designId = 9998
         elif lightSource in {'dcb', 'dcb2'}:
             try:
                 model = self.actor.models[lightSource].keyVarDict
                 designId = model['designId'].getValue()
             except Exception as e:
                 cmd.warn(f'text="failed to get designId for {lightSource}: {e}"')
-                designId = 9998.0
+                designId = 9998
         else:
             cmd.warn(f'text="unknown lightsource ({lightSource}) for a designId')
-            designId = 9999.0
+            designId = 9999
 
         cards.append(dict(name='W_PFDSGN', value=designId, comment=f'pfsDesign, from {lightSource}'))
-        cards.append(dict(name='W_LGTSRC', value=lightSource, comment=f'Light source for this module'))
+        cards.append(dict(name='W_LGTSRC', value=lightSource, comment='Light source for this module'))
         return cards
 
     def finishHeaderKeys(self, cmd, visit):
