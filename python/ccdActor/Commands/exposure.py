@@ -655,8 +655,6 @@ class Exposure(object):
         imtype = self.imtype.upper()
         if imtype == 'ARC':
             imtype = 'COMPARISON'
-        elif imtype == 'OBJECT':
-            imtype = 'ACQUISITION'
 
         try:
             detId = self.actor.ids.idDict['fpaId']
