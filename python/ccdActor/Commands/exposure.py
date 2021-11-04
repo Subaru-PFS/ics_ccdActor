@@ -10,6 +10,7 @@ import numpy as np
 import fitsio
 from actorcore.utility import fits as fitsUtils
 from actorcore.utility import timecards
+from ics.utils.fits import wcs
 import pfs.utils.sps.fits as spsFits
 from opscore.utility.qstr import qstr
 import fpga.ccdFuncs as ccdFuncs
@@ -324,7 +325,7 @@ class Exposure(object):
     def getImageCards(self, cmd=None):
         """Return the FITS cards for the image HDU, WCS, basically.
 
-        We do not yet have a WCS, so only return the required Subaru cards.
+        Return the required Subaru cards plus a pixel-pixel WCS, per INSTRM-578
         """
 
         allCards = []
@@ -333,6 +334,8 @@ class Exposure(object):
         allCards.append(dict(name='BLANK', value=-32768, comment='Unscaled value used for invalid pixels'))
         allCards.append(dict(name='BIN-FCT1', value=1, comment='X-axis binning'))
         allCards.append(dict(name='BIN-FCT2', value=1, comment='Y-axis binning'))
+        allCards.extend(wcs.pixelWcsCards())
+
         return allCards
 
     def writeImageFile(self, im, filepath, visit, addCards=None, comment=None, cmd=None):
