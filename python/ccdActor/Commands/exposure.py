@@ -134,7 +134,9 @@ class Exposure(object):
         """ Wipe/flush the detector and put it in integration mode. """
 
         self._setExposureState('wiping', cmd=cmd)
-        ccdFuncs.wipe(self.ccd, feeControl=self.fee, nrows=nrows)
+        if nrows > 0:
+            ccdFuncs.wipe(self.ccd, feeControl=self.fee,
+                          nrows=nrows, blockPurgedWipe=fast)
         self.timecards = timecards.TimeCards()
         self._setExposureState('integrating', cmd=cmd)
         self.startTime = time.time()
@@ -200,16 +202,25 @@ class Exposure(object):
         pathDir.mkdir(mode=0o2755, parents=True, exist_ok=True)
         return path
 
+    def placeRows(self, im, row0, nrows):
+        newIm = self.ccd.makeEmptyImage()
+        newIm[row0:row0+nrows,:] = im
+        return newIm
+
     def readout(self, imtype=None, expTime=None, darkTime=None,
                 visit=None, obstime=None, comment='',
-                doFeeCards=True, doModes=True,
-                nrows=None, ncols=None, cmd=None, doRun=True):
+                doFeeCards=True, doModes=True, fast=False,
+                nrows=None, ncols=None, row0=None,
+                cmd=None, doRun=True):
         if imtype is not None:
             self.imtype = imtype
         if expTime is not None:
             self.expTime = expTime
         if comment is not None:
             self.comment = comment
+
+        if row0 is not None and nrows is None:
+            raise RuntimeError("if row0 is specified, nrows must also be.")
 
         # In operations, we are always told what our visit is. If we
         # are not told, use an internally tracked file counter. Since we
@@ -244,9 +255,10 @@ class Exposure(object):
             if self.expTime == 0:
                 darkTime = 0.0
             else:
-                darkTime = self.expTime + 2*0.38
+                darkTime = self.expTime + 2*0.38  # Educated guess about shutter transit times.
         self.darkTime = darkTime
-        
+
+        addCards = []
         if doRun:
             self.timecards.end(expTime=self.expTime)
             self.finishHeaderKeys(cmd, visit)
@@ -260,8 +272,15 @@ class Exposure(object):
                                      rowStatsFunc=rowCB)
             im = self.fixupImage(im, cmd)
 
+            if row0 is not None:
+                im = self.placeRows(im, row0, nrows)
+                addCards.append(dict(name='W_CDROW0', value=row0,
+                                     comment='first row of readout window'))
+                addCards.append(dict(name='W_CDROWN', value=row0+nrows-1,
+                                     comment='last row in readout window'))
+
             filepath = self.makeFilePath(visit, cmd)
-            self.writeImageFile(im, filepath, visit,
+            self.writeImageFile(im, filepath, visit, addCards=addCards,
                                 comment=self.comment, cmd=cmd)
         else:
             im = None

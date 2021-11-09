@@ -33,7 +33,7 @@ class CcdCmd(object):
         self.vocab = [
             ('wipe', '[<nrows>] [<ncols>]', self.wipe),
             ('read',
-             '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff]',
+             '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff] [@fast] [<row0>]',
              self.read),
             ('clock','[<nrows>] <ncols>', self.clock),
             ('revread','[<nrows>] [<binning>]', self.revRead),
@@ -84,6 +84,8 @@ class CcdCmd(object):
                                                  help="signals to turn on"),
                                         keys.Key("off", types.Enum(*sorted([c.label for c in clockIDs.signals]))*(1,),
                                                  help="signals to turn off"),
+                                        keys.Key("row0", types.Int(),
+                                                 help='first row of band to read'),
         )
 
         self.exposureState = 'idle'
@@ -201,6 +203,11 @@ class CcdCmd(object):
 
         cmdKeys = cmd.cmd.keywords
 
+        row0 = cmdKeys['row0'].values[0] if 'row0' in cmdKeys else 0
+        if row0 is not None and 'nrows' not in cmdKeys:
+            cmd.fail('text="if row0 is specified, nrows must also be"')
+            return
+
         if nrows is None:
             nrows = cmdKeys['nrows'].values[0] if 'nrows' in cmdKeys else None
             if nrows is None:
@@ -243,11 +250,15 @@ class CcdCmd(object):
             cmd.warn('text="disabling SW on CCD1, to identify CCD amps."')
             exp.setFee(ccdFuncs.disableSWOnCcdTweak(exp.fee), cmd)
 
+        if row0 is not None:
+            cmd.warn(f'text="wiping {row0} rows"')
+            exp.wipe(cmd=cmd, nrows=row0, fast=True)
+
         exp.readout(imtype, exptime, darkTime=darktime,
                     visit=visit, obstime=obstime,
-                    nrows=nrows, ncols=ncols,
+                    nrows=nrows, ncols=ncols, row0=row0,
                     doFeeCards=doFeeCards, doModes=doModes,
-                    comment=comment, doRun=doRun, cmd=cmd)
+                    comment=comment, doRun=doRun, fast=fast, cmd=cmd)
         self.closeoutExposure(cmd=cmd)
         
         if doFinish:
