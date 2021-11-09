@@ -31,7 +31,7 @@ class CcdCmd(object):
         # passed a single argument, the parsed and typed command.
         #
         self.vocab = [
-            ('wipe', '[<nrows>] [<ncols>]', self.wipe),
+            ('wipe', '[<nrows>] [<ncols>] [@fast]', self.wipe),
             ('read',
              '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff] [@fast] [<row0>]',
              self.read),
@@ -146,11 +146,12 @@ class CcdCmd(object):
 
         cmdKeys = cmd.cmd.keywords
 
+        fast = 'fast' in cmdKeys
         if nrows is None:
             nrows = cmdKeys['nrows'].values[0] if 'nrows' in cmdKeys else None
         if ncols is None:
             ncols = cmdKeys['ncols'].values[0] if 'ncols' in cmdKeys else None
-        self.nrows = nrows 
+        self.nrows = nrows
         self.ncols = ncols
 
         ## NOT using nrows, ncols yet!
@@ -159,7 +160,7 @@ class CcdCmd(object):
                                 self.actor.bcast)
         self._setExposure(cmd, exp)
 
-        exp.wipe(cmd=cmd, nrows=nrows)
+        exp.wipe(cmd=cmd, nrows=nrows, fast=fast)
 
         if doFinish:
             cmd.finish('text="wiped!"')
@@ -231,7 +232,8 @@ class CcdCmd(object):
         darktime = cmdKeys['darktime'].values[0] if 'darktime' in cmdKeys else None
         visit = cmdKeys['visit'].values[0] if 'visit' in cmdKeys else None
         swOffTweak = 'swoff' in cmdKeys
-        
+        fast = 'fast' in cmdKeys
+
         try:
             exp = self._getExposure(cmd)
         except exposure.NoExposureIsActive:
