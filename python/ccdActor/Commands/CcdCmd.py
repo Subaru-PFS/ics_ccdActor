@@ -205,7 +205,7 @@ class CcdCmd(object):
         cmdKeys = cmd.cmd.keywords
 
         row0 = cmdKeys['row0'].values[0] if 'row0' in cmdKeys else 0
-        if row0 is not None and 'nrows' not in cmdKeys:
+        if row0 > 0 and 'nrows' not in cmdKeys:
             cmd.fail('text="if row0 is specified, nrows must also be"')
             return
 
@@ -252,7 +252,7 @@ class CcdCmd(object):
             cmd.warn('text="disabling SW on CCD1, to identify CCD amps."')
             exp.setFee(ccdFuncs.disableSWOnCcdTweak(exp.fee), cmd)
 
-        if row0 is not None:
+        if row0 > 0:
             cmd.warn(f'text="wiping {row0} rows"')
             exp.wipe(cmd=cmd, nrows=row0, fast=True)
 

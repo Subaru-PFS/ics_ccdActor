@@ -136,7 +136,7 @@ class Exposure(object):
         if fast:
             cmd.inform('text="fast wipe"')
         self._setExposureState('wiping', cmd=cmd)
-        if nrows > 0:
+        if nrows != 0:
             ccdFuncs.wipe(self.ccd, feeControl=self.fee,
                           nrows=nrows, blockPurgedWipe=fast)
         self.timecards = timecards.TimeCards()
@@ -204,15 +204,32 @@ class Exposure(object):
         pathDir.mkdir(mode=0o2755, parents=True, exist_ok=True)
         return path
 
-    def placeRows(self, im, row0, nrows):
+    def placeRows(self, subIm, row0):
+        """Return a full-sized readout with the given band of rows copied in.
+
+        Args
+        ----
+        subIm : np.array
+          a partial readout
+        row0 : `int`
+          the detector row corresponding to the bottom of the subIm.
+
+        Returns
+        -------
+        im : a full-size detector image, with subIm placed between rows row0..row0+nrows-1, and
+             the rest of the image set to 0.
+        """
+
+        nrows = subIm.shape[0]
+
         newIm = self.ccd.makeEmptyImage()
-        newIm[row0:row0+nrows,:] = im
+        newIm[row0:row0+nrows,:] = subIm
         return newIm
 
     def readout(self, imtype=None, expTime=None, darkTime=None,
                 visit=None, obstime=None, comment='',
                 doFeeCards=True, doModes=True, fast=False,
-                nrows=None, ncols=None, row0=None,
+                nrows=None, ncols=None, row0=0,
                 cmd=None, doRun=True):
         if imtype is not None:
             self.imtype = imtype
@@ -221,7 +238,7 @@ class Exposure(object):
         if comment is not None:
             self.comment = comment
 
-        if row0 is not None and nrows is None:
+        if row0 > 0 and nrows is None:
             raise RuntimeError("if row0 is specified, nrows must also be.")
 
         # In operations, we are always told what our visit is. If we
@@ -272,14 +289,17 @@ class Exposure(object):
                                      comment=self.comment,
                                      doSave=False,
                                      rowStatsFunc=rowCB)
+            if nrows is None:
+                nrows = im.shape[0]
             im = self.fixupImage(im, cmd)
 
-            if row0 is not None:
-                im = self.placeRows(im, row0, nrows)
-                addCards.append(dict(name='W_CDROW0', value=row0,
-                                     comment='first row of readout window'))
-                addCards.append(dict(name='W_CDROWN', value=row0+nrows-1,
-                                     comment='last row in readout window'))
+            if row0 > 0:
+                im = self.placeRows(im, row0)
+
+            addCards.append(dict(name='W_CDROW0', value=row0,
+                                 comment='first row of readout window'))
+            addCards.append(dict(name='W_CDROWN', value=row0+nrows-1,
+                                 comment='last row in readout window'))
 
             filepath = self.makeFilePath(visit, cmd)
             self.writeImageFile(im, filepath, visit, addCards=addCards,
