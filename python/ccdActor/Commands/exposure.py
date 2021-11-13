@@ -136,9 +136,10 @@ class Exposure(object):
         if fast:
             cmd.inform('text="fast wipe"')
         self._setExposureState('wiping', cmd=cmd)
-        if nrows != 0:
-            ccdFuncs.wipe(self.ccd, feeControl=self.fee,
-                          nrows=nrows, blockPurgedWipe=fast)
+
+        nwipes = int(nrows != 0)
+        ccdFuncs.wipe(self.ccd, feeControl=self.fee,
+                      nwipes=nwipes, nrows=nrows, blockPurgedWipe=fast)
         self.timecards = timecards.TimeCards()
         self._setExposureState('integrating', cmd=cmd)
         self.startTime = time.time()
