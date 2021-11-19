@@ -11,7 +11,7 @@ import fitsio
 from actorcore.utility import fits as fitsUtils
 from actorcore.utility import timecards
 from ics.utils.fits import wcs
-import pfs.utils.sps.fits as spsFits
+from ics.utils.sps import fits as spsFits
 from opscore.utility.qstr import qstr
 import fpga.ccdFuncs as ccdFuncs
 
