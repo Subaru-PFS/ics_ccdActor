@@ -138,6 +138,8 @@ class CcdCmd(object):
     
     def clearExposure(self, cmd):
         cmd.warn('text="clearing running/broken exposure: %s"' % (self.actor.exposure))
+        if self.actor.exposure is not None:
+            self.actor.exposure.finish()
         self.closeoutExposure(cmd)
         cmd.finish()
 
