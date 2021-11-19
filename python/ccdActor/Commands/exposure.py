@@ -11,7 +11,7 @@ import fitsio
 from actorcore.utility import fits as fitsUtils
 from actorcore.utility import timecards
 from ics.utils.fits import wcs
-import pfs.utils.sps.fits as spsFits
+from ics.utils.sps import fits as spsFits
 from opscore.utility.qstr import qstr
 import fpga.ccdFuncs as ccdFuncs
 
@@ -130,15 +130,23 @@ class Exposure(object):
             
         self._setExposureState('idle')
         
-    def wipe(self, cmd=None, nrows=None):
+    def wipe(self, cmd=None, nrows=None, fast=False):
         """ Wipe/flush the detector and put it in integration mode. """
 
+        if fast:
+            cmd.inform('text="fast wipe"')
         self._setExposureState('wiping', cmd=cmd)
-        ccdFuncs.wipe(self.ccd, feeControl=self.fee, nrows=nrows)
+
+        nwipes = int(nrows != 0)
+        if nwipes == 0:
+            cmd.warn('text="not really wiping, because nrows=0..."')
+        ccdFuncs.wipe(self.ccd, feeControl=self.fee,
+                      nwipes=nwipes, nrows=nrows, blockPurgedWipe=fast)
         self.timecards = timecards.TimeCards()
         self._setExposureState('integrating', cmd=cmd)
         self.startTime = time.time()
-        self.grabStartingHeaderKeys(cmd)
+        if nwipes > 0:
+            self.grabStartingHeaderKeys(cmd)
 
     def armNum(self, cmd):
         """Return the correct arm number: 1, 2, or 4. 
@@ -200,16 +208,42 @@ class Exposure(object):
         pathDir.mkdir(mode=0o2755, parents=True, exist_ok=True)
         return path
 
+    def placeRows(self, subIm, row0):
+        """Return a full-sized readout with the given band of rows copied in.
+
+        Args
+        ----
+        subIm : np.array
+          a partial readout
+        row0 : `int`
+          the detector row corresponding to the bottom of the subIm.
+
+        Returns
+        -------
+        im : a full-size detector image, with subIm placed between rows row0..row0+nrows-1, and
+             the rest of the image set to 0.
+        """
+
+        nrows = subIm.shape[0]
+
+        newIm = self.ccd.makeEmptyImage()
+        newIm[row0:row0+nrows,:] = subIm
+        return newIm
+
     def readout(self, imtype=None, expTime=None, darkTime=None,
                 visit=None, obstime=None, comment='',
-                doFeeCards=True, doModes=True,
-                nrows=None, ncols=None, cmd=None, doRun=True):
+                doFeeCards=True, doModes=True, fast=False,
+                nrows=None, ncols=None, row0=0,
+                cmd=None, doRun=True):
         if imtype is not None:
             self.imtype = imtype
         if expTime is not None:
             self.expTime = expTime
         if comment is not None:
             self.comment = comment
+
+        if row0 > 0 and nrows is None:
+            raise RuntimeError("if row0 is specified, nrows must also be.")
 
         # In operations, we are always told what our visit is. If we
         # are not told, use an internally tracked file counter. Since we
@@ -230,7 +264,7 @@ class Exposure(object):
 
         if self.exposureState != 'integrating':
             cmd.warn('text="reading out detector in odd state: %s"' % (str(self)))
-        if self.headerCards is None:
+        if self.headerCards is None and row0 == 0:
             self.grabStartingHeaderKeys(cmd)
         if self.timecards is None:
             self.timecards = timecards.TimeCards()
@@ -244,9 +278,10 @@ class Exposure(object):
             if self.expTime == 0:
                 darkTime = 0.0
             else:
-                darkTime = self.expTime + 2*0.38
+                darkTime = self.expTime + 2*0.38  # Educated guess about shutter transit times.
         self.darkTime = darkTime
-        
+
+        addCards = []
         if doRun:
             self.timecards.end(expTime=self.expTime)
             self.finishHeaderKeys(cmd, visit)
@@ -258,10 +293,20 @@ class Exposure(object):
                                      comment=self.comment,
                                      doSave=False,
                                      rowStatsFunc=rowCB)
+            if nrows is None:
+                nrows = im.shape[0]
             im = self.fixupImage(im, cmd)
 
+            if row0 > 0:
+                im = self.placeRows(im, row0)
+
+            addCards.append(dict(name='W_CDROW0', value=row0,
+                                 comment='first row of readout window'))
+            addCards.append(dict(name='W_CDROWN', value=row0+nrows-1,
+                                 comment='last row in readout window'))
+
             filepath = self.makeFilePath(visit, cmd)
-            self.writeImageFile(im, filepath, visit,
+            self.writeImageFile(im, filepath, visit, addCards=addCards,
                                 comment=self.comment, cmd=cmd)
         else:
             im = None
@@ -434,8 +479,11 @@ class Exposure(object):
 
         return cards
 
-    def _grabFirstFeeCards(self, cmd):
+    def _grabFirstFeeCards(self, cmd, fast=False):
         cards = []
+
+        if fast:
+            return cards
         try:
             fee = self.actor.fee
             ccdKeys = self.actor.ccdModel.keyVarDict
@@ -459,25 +507,6 @@ class Exposure(object):
 
     def _grabLastFeeCards(self, cmd):
         cards = []
-        try:
-            fee = self.actor.fee
-            ccdKeys = self.actor.ccdModel.keyVarDict
-
-            #fee.getCommandStatus('voltage')
-            #status = fee.getCommandStatus('bias')
-
-        except Exception as e:
-            cmd.warn(f'text="could not fetch FEE cards: {e}"')
-            return cards
-
-        try:
-            voltages = ('3V3M','3V3', '5VP','5VN','5VPpa', '5VNpa',
-                        '12VP', '12VN', '24VN', '54VP')
-            #ccdKeys.feeVoltages.set([status[f'bias.{v}'] for v in voltages])
-        except Exception as e:
-            cmd.warn(f'text="could not update FEE cards: {e}"')
-            return cards
-
         try:
             cards = fitsUtils.gatherHeaderCards(cmd, self.actor,
                                                 modelNames=[self.actor.ccdModelName],

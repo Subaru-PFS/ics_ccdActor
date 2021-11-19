@@ -31,9 +31,9 @@ class CcdCmd(object):
         # passed a single argument, the parsed and typed command.
         #
         self.vocab = [
-            ('wipe', '[<nrows>] [<ncols>]', self.wipe),
+            ('wipe', '[<nrows>] [<ncols>] [@fast]', self.wipe),
             ('read',
-             '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff]',
+             '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff] [@fast] [<row0>]',
              self.read),
             ('clock','[<nrows>] <ncols>', self.clock),
             ('revread','[<nrows>] [<binning>]', self.revRead),
@@ -84,6 +84,8 @@ class CcdCmd(object):
                                                  help="signals to turn on"),
                                         keys.Key("off", types.Enum(*sorted([c.label for c in clockIDs.signals]))*(1,),
                                                  help="signals to turn off"),
+                                        keys.Key("row0", types.Int(),
+                                                 help='first row of band to read'),
         )
 
         self.exposureState = 'idle'
@@ -136,6 +138,8 @@ class CcdCmd(object):
     
     def clearExposure(self, cmd):
         cmd.warn('text="clearing running/broken exposure: %s"' % (self.actor.exposure))
+        if self.actor.exposure is not None:
+            self.actor.exposure.finish()
         self.closeoutExposure(cmd)
         cmd.finish()
 
@@ -144,11 +148,12 @@ class CcdCmd(object):
 
         cmdKeys = cmd.cmd.keywords
 
+        fast = 'fast' in cmdKeys
         if nrows is None:
             nrows = cmdKeys['nrows'].values[0] if 'nrows' in cmdKeys else None
         if ncols is None:
             ncols = cmdKeys['ncols'].values[0] if 'ncols' in cmdKeys else None
-        self.nrows = nrows 
+        self.nrows = nrows
         self.ncols = ncols
 
         ## NOT using nrows, ncols yet!
@@ -157,7 +162,7 @@ class CcdCmd(object):
                                 self.actor.bcast)
         self._setExposure(cmd, exp)
 
-        exp.wipe(cmd=cmd, nrows=nrows)
+        exp.wipe(cmd=cmd, nrows=nrows, fast=fast)
 
         if doFinish:
             cmd.finish('text="wiped!"')
@@ -201,6 +206,11 @@ class CcdCmd(object):
 
         cmdKeys = cmd.cmd.keywords
 
+        row0 = cmdKeys['row0'].values[0] if 'row0' in cmdKeys else 0
+        if row0 > 0 and 'nrows' not in cmdKeys:
+            cmd.fail('text="if row0 is specified, nrows must also be"')
+            return
+
         if nrows is None:
             nrows = cmdKeys['nrows'].values[0] if 'nrows' in cmdKeys else None
             if nrows is None:
@@ -224,7 +234,8 @@ class CcdCmd(object):
         darktime = cmdKeys['darktime'].values[0] if 'darktime' in cmdKeys else None
         visit = cmdKeys['visit'].values[0] if 'visit' in cmdKeys else None
         swOffTweak = 'swoff' in cmdKeys
-        
+        fast = 'fast' in cmdKeys
+
         try:
             exp = self._getExposure(cmd)
         except exposure.NoExposureIsActive:
@@ -243,11 +254,15 @@ class CcdCmd(object):
             cmd.warn('text="disabling SW on CCD1, to identify CCD amps."')
             exp.setFee(ccdFuncs.disableSWOnCcdTweak(exp.fee), cmd)
 
+        if row0 > 0:
+            cmd.warn(f'text="wiping {row0} rows"')
+            exp.wipe(cmd=cmd, nrows=row0, fast=True)
+
         exp.readout(imtype, exptime, darkTime=darktime,
                     visit=visit, obstime=obstime,
-                    nrows=nrows, ncols=ncols,
+                    nrows=nrows, ncols=ncols, row0=row0,
                     doFeeCards=doFeeCards, doModes=doModes,
-                    comment=comment, doRun=doRun, cmd=cmd)
+                    comment=comment, doRun=doRun, fast=fast, cmd=cmd)
         self.closeoutExposure(cmd=cmd)
         
         if doFinish:

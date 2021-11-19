@@ -8,7 +8,7 @@ import socket
 from twisted.internet import reactor
 
 import actorcore.ICC
-from pfs.utils import spectroIds
+from ics.utils.sps import spectroIds
 import pfs.utils.butler as pfsButler
 
 class OurActor(actorcore.ICC.ICC):
