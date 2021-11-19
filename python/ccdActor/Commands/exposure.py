@@ -138,12 +138,15 @@ class Exposure(object):
         self._setExposureState('wiping', cmd=cmd)
 
         nwipes = int(nrows != 0)
+        if nwipes == 0:
+            cmd.warn('text="not really wiping, because nrows=0..."')
         ccdFuncs.wipe(self.ccd, feeControl=self.fee,
                       nwipes=nwipes, nrows=nrows, blockPurgedWipe=fast)
         self.timecards = timecards.TimeCards()
         self._setExposureState('integrating', cmd=cmd)
         self.startTime = time.time()
-        self.grabStartingHeaderKeys(cmd)
+        if nwipes > 0:
+            self.grabStartingHeaderKeys(cmd)
 
     def armNum(self, cmd):
         """Return the correct arm number: 1, 2, or 4. 
@@ -261,7 +264,7 @@ class Exposure(object):
 
         if self.exposureState != 'integrating':
             cmd.warn('text="reading out detector in odd state: %s"' % (str(self)))
-        if self.headerCards is None:
+        if self.headerCards is None and row0 == 0:
             self.grabStartingHeaderKeys(cmd)
         if self.timecards is None:
             self.timecards = timecards.TimeCards()
@@ -476,8 +479,11 @@ class Exposure(object):
 
         return cards
 
-    def _grabFirstFeeCards(self, cmd):
+    def _grabFirstFeeCards(self, cmd, fast=False):
         cards = []
+
+        if fast:
+            return cards
         try:
             fee = self.actor.fee
             ccdKeys = self.actor.ccdModel.keyVarDict
@@ -501,25 +507,6 @@ class Exposure(object):
 
     def _grabLastFeeCards(self, cmd):
         cards = []
-        try:
-            fee = self.actor.fee
-            ccdKeys = self.actor.ccdModel.keyVarDict
-
-            #fee.getCommandStatus('voltage')
-            #status = fee.getCommandStatus('bias')
-
-        except Exception as e:
-            cmd.warn(f'text="could not fetch FEE cards: {e}"')
-            return cards
-
-        try:
-            voltages = ('3V3M','3V3', '5VP','5VN','5VPpa', '5VNpa',
-                        '12VP', '12VN', '24VN', '54VP')
-            #ccdKeys.feeVoltages.set([status[f'bias.{v}'] for v in voltages])
-        except Exception as e:
-            cmd.warn(f'text="could not update FEE cards: {e}"')
-            return cards
-
         try:
             cards = fitsUtils.gatherHeaderCards(cmd, self.actor,
                                                 modelNames=[self.actor.ccdModelName],
