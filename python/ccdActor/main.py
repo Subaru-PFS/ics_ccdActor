@@ -71,11 +71,6 @@ class OurActor(actorcore.ICC.ICC):
 
     def connectionMade(self):
         if self.everConnected is False:
-            logging.info("Attaching all controllers...")
-            self.allControllers = [s.strip() for s in self.config.get(self.name, 'startingControllers').split(',')]
-            self.attachAllControllers()
-            self.everConnected = True
-
             models = [m % self.ids.idDict for m in ('gen2', 'iic', 'pfilamps', 'dcb', 'sps', 'scr',
                                                     'ccd_%(camName)s', 'xcu_%(camName)s', 
                                                     'enu_%(specName)s')]
@@ -83,6 +78,11 @@ class OurActor(actorcore.ICC.ICC):
             self.addModels(models)
             self.logger.info('added models: %s', self.models.keys())
             self.butler = pfsButler.Butler(specIds=self.ids)
+
+            logging.info("Attaching all controllers...")
+            self.allControllers = [s.strip() for s in self.config.get(self.name, 'startingControllers').split(',')]
+            self.attachAllControllers()
+            self.everConnected = True
             
     def statusLoop(self, controller):
         try:
