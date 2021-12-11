@@ -63,7 +63,7 @@ def perAmpSerialOverScan(osIm, rowTrim=(0, 0), colTrim=(3, 3)):
 
     trimmed = osIm[rows, cols]
 
-    return np.median(trimmed), robustRms(trimmed)
+    return np.median(trimmed), np.std(trimmed)
 
 
 def ensureOverscansAreInRange(overscan, ampsConfig):
