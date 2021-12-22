@@ -14,6 +14,7 @@ from ics.utils.fits import wcs
 from ics.utils.sps import fits as spsFits
 from opscore.utility.qstr import qstr
 import fpga.ccdFuncs as ccdFuncs
+import ccdActor.utils.basicQA as basicQA
 
 reload(fitsUtils)
 reload(spsFits)
@@ -313,6 +314,18 @@ class Exposure(object):
             filepath = "/no/such/dir/nosuchfile.fits"
             for c in self.headerCards:
                 cmd.inform('text="header card: %s"' % (str(c)))
+
+        if im is not None:
+            # proceed with crude serial overscan check.
+            overscan = basicQA.serialOverscanStats(im, readRows=(row0, row0+nrows))
+
+            # generate keywords.
+            cmd.inform(f"overscanLevels={','.join(map(str, overscan.level.round(3)))}")
+            cmd.inform(f"overscanNoise={','.join(map(str, overscan.noise.round(3)))}")
+
+            # ensure overscans level/noise are compliants.
+            status = basicQA.ensureOverscansAreInRange(overscan, self.actor.instData.config['amplifiers'])
+            cmd.inform(f'visitQA={visit},{qstr(status)}')
 
         filepath = pathlib.Path(filepath)
         filename = filepath.name

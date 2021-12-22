@@ -2,14 +2,13 @@
 
 import argparse
 import logging
-import os
-import socket
-
-from twisted.internet import reactor
 
 import actorcore.ICC
-from ics.utils.sps import spectroIds
 import pfs.utils.butler as pfsButler
+from ics.utils import instdata
+from ics.utils.sps import spectroIds
+from twisted.internet import reactor
+
 
 class OurActor(actorcore.ICC.ICC):
     def __init__(self, name=None, site=None,
@@ -27,12 +26,16 @@ class OurActor(actorcore.ICC.ICC):
 
         if name is None:
             name = 'ccd_%s' % (self.ids.camName)
-            
+
+        # Add instdata class and enable string interpolation
+        self.instData = instdata.InstData(self, name)
+        self.instData.config.enableStringInterpolation(self.ids.idDict)
+
         # This sets up the connections to/from the hub, the logger, and the twisted reactor.
         #
 
-        actorcore.ICC.ICC.__init__(self, name, 
-                                   productName=productName, 
+        actorcore.ICC.ICC.__init__(self, name,
+                                   productName=productName,
                                    configFile=configFile)
         self.logger.setLevel(logLevel)
         self.everConnected = False
@@ -42,7 +45,7 @@ class OurActor(actorcore.ICC.ICC):
 
         self.exposure = None
         self.grating = 'real'
-        
+
     @property
     def fee(self):
         return self.controllers['fee']
@@ -71,30 +74,35 @@ class OurActor(actorcore.ICC.ICC):
 
     def connectionMade(self):
         if self.everConnected is False:
-            logging.info("Attaching all controllers...")
-            self.allControllers = [s.strip() for s in self.config.get(self.name, 'startingControllers').split(',')]
-            self.attachAllControllers()
-            self.everConnected = True
-
             models = [m % self.ids.idDict for m in ('gen2', 'iic', 'pfilamps', 'dcb', 'sps', 'scr',
-                                                    'ccd_%(camName)s', 'xcu_%(camName)s', 
+                                                    'ccd_%(camName)s', 'xcu_%(camName)s',
                                                     'enu_%(specName)s')]
             self.logger.info('adding models: %s', models)
             self.addModels(models)
             self.logger.info('added models: %s', self.models.keys())
             self.butler = pfsButler.Butler(specIds=self.ids)
-            
+
+            logging.info("Attaching all controllers...")
+            self.allControllers = [s.strip() for s in self.config.get(self.name, 'startingControllers').split(',')]
+            self.attachAllControllers()
+            self.everConnected = True
+
+    def reloadConfiguration(self, cmd):
+        """ optional user hook, called from Actor._reloadConfiguration"""
+        cmd.inform('text="reloading instdata config file..."')
+        self.instData.config.reload()
+
     def statusLoop(self, controller):
         try:
             self.callCommand("%s status" % (controller))
         except:
             pass
-        
+
         if self.monitors.setdefault(controller, 0) > 0:
             reactor.callLater(self.monitors[controller],
                               self.statusLoopCB,
                               controller)
-            
+
     def monitor(self, controller, period, cmd=None):
         running = self.monitors.setdefault(controller, 0) > 0
         self.monitors[controller] = period
@@ -105,6 +113,8 @@ class OurActor(actorcore.ICC.ICC):
             self.statusLoopCB(controller)
         else:
             cmd.warn('text="adjusted %s loop to %gs"' % (controller, self.monitors[controller]))
+
+
 #
 # To work
 def main():
@@ -120,13 +130,14 @@ def main():
     parser.add_argument('--site', default=None, type=str, nargs='?',
                         help='PFS site, e.g. L for LAM')
     args = parser.parse_args()
-    
+
     theActor = OurActor(args.name,
                         productName='ccdActor',
                         site=args.site,
                         configFile=args.config,
                         logLevel=args.logLevel)
     theActor.run()
+
 
 if __name__ == '__main__':
     main()
