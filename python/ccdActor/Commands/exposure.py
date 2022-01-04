@@ -490,6 +490,16 @@ class Exposure(object):
         except Exception as e:
             cmd.warn(f'text="failed to fetch ending cards: {e}"')
 
+        # try to get shutter mask card.
+        try:
+            enuModel = self.actor.enuModel
+            shutterMask = enuModel.keyVarDict['shutterMask'].getValue()
+        except Exception as e:
+            shutterMask = 9998
+            cmd.warn(f'text="failed to get enu shutter mask: {e}"')
+
+        cards.append(dict(name='W_ENSHMK', value=shutterMask, comment='Which shutter moved before/after integration'))
+
         return cards
 
     def _grabFirstFeeCards(self, cmd, fast=False):
