@@ -8,9 +8,9 @@ import threading
 import numpy as np
 
 import fitsio
-from actorcore.utility import fits as fitsUtils
-from actorcore.utility import timecards
 from ics.utils.fits import wcs
+from ics.utils.fits import mhs as fitsUtils
+from ics.utils.fits import timecards
 from ics.utils.sps import fits as spsFits
 from opscore.utility.qstr import qstr
 import fpga.ccdFuncs as ccdFuncs
