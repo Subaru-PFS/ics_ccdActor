@@ -74,7 +74,8 @@ class OurActor(actorcore.ICC.ICC):
 
     def connectionMade(self):
         if self.everConnected is False:
-            models = [m % self.ids.idDict for m in ('gen2', 'iic', 'pfilamps', 'dcb', 'sps', 'scr',
+            models = [m % self.ids.idDict for m in ('gen2', 'iic', 'pfilamps', 'dcb', 'dcb2',
+                                                    'sps', 'scr',
                                                     'ccd_%(camName)s', 'xcu_%(camName)s',
                                                     'enu_%(specName)s')]
             self.logger.info('adding models: %s', models)
