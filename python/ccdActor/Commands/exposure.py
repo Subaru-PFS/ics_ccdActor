@@ -582,7 +582,7 @@ class Exposure(object):
             cmd.warn(f'text="failed to get enu hexapod beam date: {e}"')
             anyBad = True
 
-        isRed = self.arm in {'r', 'm'}
+        isRed = self.arm(cmd) in {'r', 'm'}
         if isRed:
             try:
                 enuModel = self.actor.enuModel
