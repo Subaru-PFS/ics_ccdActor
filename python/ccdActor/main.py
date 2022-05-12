@@ -5,7 +5,7 @@ import logging
 
 import actorcore.ICC
 import pfs.utils.butler as pfsButler
-from ics.utils import instdata
+
 from ics.utils.sps import spectroIds
 from twisted.internet import reactor
 
@@ -26,10 +26,6 @@ class OurActor(actorcore.ICC.ICC):
 
         if name is None:
             name = 'ccd_%s' % (self.ids.camName)
-
-        # Add instdata class and enable string interpolation
-        self.instData = instdata.InstData(self, name)
-        self.instData.config.enableStringInterpolation(self.ids.idDict)
 
         # This sets up the connections to/from the hub, the logger, and the twisted reactor.
         #
@@ -90,8 +86,7 @@ class OurActor(actorcore.ICC.ICC):
 
     def reloadConfiguration(self, cmd):
         """ optional user hook, called from Actor._reloadConfiguration"""
-        cmd.inform('text="reloading instdata config file..."')
-        self.instData.config.reload()
+        pass
 
     def statusLoop(self, controller):
         try:

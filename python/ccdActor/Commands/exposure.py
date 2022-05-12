@@ -324,7 +324,7 @@ class Exposure(object):
             cmd.inform(f"overscanNoise={','.join(map(str, overscan.noise.round(3)))}")
 
             # ensure overscans level/noise are compliants.
-            status = basicQA.ensureOverscansAreInRange(overscan, self.actor.instData.config['amplifiers'])
+            status = basicQA.ensureOverscansAreInRange(overscan, self.actor.actorConfig['amplifiers'])
             cmd.inform(f'visitQA={visit},{qstr(status)}')
 
         filepath = pathlib.Path(filepath)
