@@ -32,7 +32,8 @@ class OurActor(actorcore.ICC.ICC):
 
         actorcore.ICC.ICC.__init__(self, name,
                                    productName=productName,
-                                   configFile=configFile)
+                                   configFile=configFile,
+                                   idDict=self.ids.idDict)
         self.logger.setLevel(logLevel)
         self.everConnected = False
 

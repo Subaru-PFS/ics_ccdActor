@@ -268,7 +268,7 @@ class CcdCmd(object):
 
         if row0 > 0:
             haveReadTo = row0 + nrows
-            rowsLeft = self.nrows - haveReadTo
+            rowsLeft = self.ccd.nrows - haveReadTo
             cmd.warn(f'text="wiping {rowsLeft} rows after the {haveReadTo} row window"')
             exp.simpleWipe(cmd=cmd, nrows=rowsLeft, fast=True)
 
