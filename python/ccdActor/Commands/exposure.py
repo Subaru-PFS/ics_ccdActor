@@ -131,6 +131,18 @@ class Exposure(object):
             
         self._setExposureState('idle')
         
+    def simpleWipe(self, cmd=None, nrows=None, fast=False):
+        """ Wipe/flush the detector, but leave it in idle mode."""
+
+        if fast:
+            cmd.inform('text="fast wipe"')
+
+        ccdFuncs.wipe(self.ccd, feeControl=self.fee,
+                      nwipes=1, nrows=nrows,
+                      toExposeMode=False, blockPurgedWipe=fast)
+        self.fee.setMode('idle')
+        self._setExposureState('idle', cmd=cmd)
+
     def wipe(self, cmd=None, nrows=None, fast=False):
         """ Wipe/flush the detector and put it in integration mode. """
 

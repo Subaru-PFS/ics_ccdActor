@@ -33,7 +33,8 @@ class CcdCmd(object):
         self.vocab = [
             ('wipe', '[<nrows>] [<ncols>] [@fast]', self.wipe),
             ('read',
-             '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] [<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff] [@fast] [<row0>]',
+             '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] '
+             '[<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff] [@fast] [<row0>]',
              self.read),
             ('clock','[<nrows>] <ncols>', self.clock),
             ('revread','[<nrows>] [<binning>]', self.revRead),
@@ -80,7 +81,8 @@ class CcdCmd(object):
                                                  help='offset value'),
                                         keys.Key("value", types.Float(),
                                                  help='offset value'),
-                                        keys.Key("on", types.Enum(*sorted([c.label for c in clockIDs.signals]))*(1,),
+                                        keys.Key("on",
+                                                 types.Enum(*sorted([c.label for c in clockIDs.signals]))*(1,),
                                                  help="signals to turn on"),
                                         keys.Key("off", types.Enum(*sorted([c.label for c in clockIDs.signals]))*(1,),
                                                  help="signals to turn off"),
@@ -263,6 +265,13 @@ class CcdCmd(object):
                     nrows=nrows, ncols=ncols, row0=row0,
                     doFeeCards=doFeeCards, doModes=doModes,
                     comment=comment, doRun=doRun, fast=fast, cmd=cmd)
+
+        if row0 > 0:
+            haveReadTo = row0 + nrows
+            rowsLeft = self.ccd.nrows - haveReadTo
+            cmd.warn(f'text="wiping {rowsLeft} rows after the {haveReadTo} row window"')
+            exp.simpleWipe(cmd=cmd, nrows=rowsLeft, fast=True)
+
         self.closeoutExposure(cmd=cmd)
         
         if doFinish:
