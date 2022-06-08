@@ -36,6 +36,7 @@ class CcdCmd(object):
              '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] '
              '[<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff] [@fast] [<row0>]',
              self.read),
+            ('erase', '', self.erase),
             ('clock','[<nrows>] <ncols>', self.clock),
             ('revread','[<nrows>] [<binning>]', self.revRead),
             ('clearExposure', '', self.clearExposure),
@@ -143,6 +144,13 @@ class CcdCmd(object):
         if self.actor.exposure is not None:
             self.actor.exposure.finish()
         self.closeoutExposure(cmd)
+        cmd.finish()
+
+    def erase(self, cmd):
+        exp = exposure.Exposure(self.actor, None, 0,
+                                self.ccd, self.fee,
+                                self.actor.bcast)
+        exp.simpleWipe(cmd=cmd)
         cmd.finish()
 
     def wipe(self, cmd, nrows=None, ncols=None, doFinish=True):
