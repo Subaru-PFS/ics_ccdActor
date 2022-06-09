@@ -1,8 +1,10 @@
-from importlib import reload
 import logging
+from importlib import reload
 
 import xcu_fpga.fee.feeControl as feeControl
+
 reload(feeControl)
+
 
 class fee(feeControl.FeeControl):
     def __init__(self, actor, name,
@@ -10,8 +12,11 @@ class fee(feeControl.FeeControl):
 
         fpga = actor.controllers.get('ccd', None)
         port = actor.config.get('fee', 'port')
+        features = actor.actorConfig.get('feeFeatures', None)
+
         feeControl.FeeControl.__init__(self, fpga=fpga,
                                        port=port,
+                                       features=features,
                                        logLevel=logLevel)
         self.actor = actor
         self.name = name
@@ -31,6 +36,6 @@ class fee(feeControl.FeeControl):
 
     def stop(self, cmd=None):
         pass
+
     def start(self, cmd=None):
         pass
-    
