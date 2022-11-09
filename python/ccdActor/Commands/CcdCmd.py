@@ -133,16 +133,20 @@ class CcdCmd(object):
     def _getExposure(self, cmd):
         if self.actor.exposure is None:
             raise exposure.NoExposureIsActive('no exposure is active!!')
-            
+
         return self.actor.exposure
 
     def closeoutExposure(self, cmd):
         self.actor.exposure = None
-    
+
     def clearExposure(self, cmd):
+        """Remove state of any existing/broken exposure. Also set FEE to idle. """
+
         cmd.warn('text="clearing running/broken exposure: %s"' % (self.actor.exposure))
         if self.actor.exposure is not None:
             self.actor.exposure.finish()
+        else:
+            self.actor.fee.setMode('idle')
         self.closeoutExposure(cmd)
         cmd.finish()
 

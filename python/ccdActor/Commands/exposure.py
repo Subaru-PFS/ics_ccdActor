@@ -122,15 +122,16 @@ class Exposure(object):
 
     def abort(self, abortCmd):
         abortCmd.warn('text="overwriting existing exposure!!!: %s"' % (self))
+        self.fee.setMode('idle')
         self._setExposureState('aborted')
         self.cmd.fail('exposureState="aborted"')
-    
+
     def finish(self):
         if self.exposureState != 'idle':
             self.cmd.warn('text="stopping a non-idle exposure: %s"' % (str(self)))
-            
+            self.fee.setMode('idle')
         self._setExposureState('idle')
-        
+
     def simpleWipe(self, cmd=None, nrows=None, fast=False):
         """ Wipe/flush the detector, but leave it in idle mode."""
 
