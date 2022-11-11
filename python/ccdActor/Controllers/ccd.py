@@ -13,18 +13,17 @@ class ccd(fpga.ccd.CCD):
 
         self.actor = actor
         self.name = name
-        try:
-            fakeCam = actor.config.get(actor.name, 'fakeCam')
+
+        fakeCam = actor.actorConfig.get('fakeCam', None)
+        if fakeCam is not None:
             actor.bcast.warn('text="setting ccd up on the fake camera: %s"' % (fakeCam))
             ids = spectroIds.SpectroIds(partname=fakeCam, site=actor.ids.site)
-        except:
+        else:
             ids = actor.ids
 
-        try:
-            adcVersion = actor.config.get('fee', 'adcVersion')
+        adcVersion = actor.actorConfig.get('adcVersion', None)
+        if adcVersion is not None:
             actor.bcast.warn('text="overriding default FPGA/ADC type: %s"' % (adcVersion))
-        except:
-            adcVersion = None
 
         fpga.ccd.CCD.__init__(self, ids.specNum, ids.arm, site=ids.site,
                               adcVersion=adcVersion)

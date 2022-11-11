@@ -41,24 +41,18 @@ class TopCmd(object):
                                                  help='the names of 1 or more controllers to work on'),
                                         )
 
-
     def monitor(self, cmd):
         """ Enable/disable/adjust period controller monitors. """
-        
         period = cmd.cmd.keywords['period'].values[0]
         controllers = cmd.cmd.keywords['controllers'].values
 
-        knownControllers = ['temps']
-        for c in self.actor.config.get(self.actor.name, 'controllers').split(','):
-            c = c.strip()
-            knownControllers.append(c)
-        
+        knownControllers = self.actor.actorConfig['controllers']['all']
         foundOne = False
         for c in controllers:
             if c not in knownControllers:
                 cmd.warn('text="not starting monitor for %s: unknown controller"' % (c))
                 continue
-                
+
             self.actor.monitor(c, period, cmd=cmd)
             foundOne = True
 
@@ -72,7 +66,7 @@ class TopCmd(object):
         key = 'controllers=%s' % (','.join([c for c in controllerNames]))
 
         return key
-    
+
     def connect(self, cmd, doFinish=True):
         """ Reload all controller objects. """
 

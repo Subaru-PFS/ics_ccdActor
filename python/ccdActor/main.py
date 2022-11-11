@@ -35,6 +35,7 @@ class OurActor(actorcore.ICC.ICC):
                                    configFile=configFile,
                                    idDict=self.ids.idDict)
         self.logger.setLevel(logLevel)
+        self.logger.info(f'actorConfig: {self.actorConfig}')
         self.everConnected = False
 
         self.monitors = dict()
@@ -81,7 +82,7 @@ class OurActor(actorcore.ICC.ICC):
             self.butler = pfsButler.Butler(specIds=self.ids)
 
             logging.info("Attaching all controllers...")
-            self.allControllers = [s.strip() for s in self.config.get(self.name, 'startingControllers').split(',')]
+            self.allControllers = self.actorConfig['controllers']['starting']
             self.attachAllControllers()
             self.everConnected = True
 
@@ -116,8 +117,6 @@ class OurActor(actorcore.ICC.ICC):
 # To work
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', default=None, type=str, nargs='?',
-                        help='configuration file to use')
     parser.add_argument('--logLevel', default=logging.INFO, type=int, nargs='?',
                         help='logging level')
     parser.add_argument('--name', default=None, type=str, nargs='?',
@@ -131,7 +130,6 @@ def main():
     theActor = OurActor(args.name,
                         productName='ccdActor',
                         site=args.site,
-                        configFile=args.config,
                         logLevel=args.logLevel)
     theActor.run()
 
