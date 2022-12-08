@@ -680,8 +680,8 @@ class Exposure(object):
 
                 try:
                     lampState, lampTime = inferLampStateAndTime(key)
-                    lampCards.append(dict(name=lampStateKey, value=lampState, comment=f'{key.upper()}_LAMP_STATE'))
-                    lampCards.append(dict(name=lampTimeKey, value=lampTime, comment=f'{key.upper()}_LAMP_TIME'))
+                    lampCards.append(dict(name=lampStateKey, value=lampState, comment=f'{key.upper()} lamp state'))
+                    lampCards.append(dict(name=lampTimeKey, value=lampTime, comment=f'[s] {key.upper()} lamp on time'))
                 except Exception as e:
                     cmd.warn(f'text="failed to get {lightSource}.{key} key :{e}"')
 
