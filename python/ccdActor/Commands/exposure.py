@@ -12,12 +12,14 @@ from ics.utils.fits import wcs
 from ics.utils.fits import mhs as fitsUtils
 from ics.utils.fits import timecards
 from ics.utils.sps import fits as spsFits
+import ics.utils.time as pfsTime
 from opscore.utility.qstr import qstr
 import fpga.ccdFuncs as ccdFuncs
 import ccdActor.utils.basicQA as basicQA
 
 reload(fitsUtils)
 reload(spsFits)
+reload(pfsTime)
 
 class ExposureIsActive(Exception):
     pass
@@ -36,14 +38,14 @@ class ExpThread(threading.Thread):
     def run(self):
         exp = self.kwargs['exp']
         callback = self.kwargs['callback']
-        
+
         exp.cmd.inform('text="integrating for %0.2f s..."' % (exp.expTime))
         if exp.expTime > 0:
             time.sleep(exp.expTime)
         exp.readout()
         exp.cmd.inform('text="calling next exposure..."')
         callback()
-        
+
 class Exposure(object):
     exposureState = 'idle'
 
@@ -60,10 +62,11 @@ class Exposure(object):
         self.logger = logging.getLogger('exposure')
         self.timecards = None
         self.headerCards = None
+        self.obstime = None
         self.genStatus = self.__instanceGetStatus
 
         self.pleaseStop = False
-        
+
     def __str__(self):
         return "Exposure(imtype=%s, expTime=%s, startedAt=%s)" % (self.imtype,
                                                                   self.expTime,
@@ -174,7 +177,7 @@ class Exposure(object):
         variable. That may only ever be used for code testing.
 
         """
-        
+
         if self.actor.ids.arm != 'r':
             return self.actor.ids.armNum
         if self.actor.grating != 'real':
@@ -196,7 +199,7 @@ class Exposure(object):
         except KeyError:
             cmd.warn(f'text="enu grating position invalid ({rexm}), using low for filename"')
             return 2
-            
+
     def arm(self, cmd):
         """Return the correct arm: 'b', 'r', 'm', 'n'.
 
@@ -253,6 +256,8 @@ class Exposure(object):
             self.imtype = imtype
         if expTime is not None:
             self.expTime = expTime
+        if obstime is not None:
+            self.obstime = obstime
         if comment is not None:
             self.comment = comment
 
@@ -265,10 +270,10 @@ class Exposure(object):
         # that is maintained by the ccd object.
         if visit is None:
             visit = self.ccd.fileMgr.consumeNextSeqno()
-            
+
         if cmd is None:
             cmd = self.cmd
-            
+
         def rowCB(line, image, errorMsg="OK", cmd=cmd, **kwargs):
             imageHeight = image.shape[0]
             everyNRows = 500
@@ -282,7 +287,7 @@ class Exposure(object):
             self.grabStartingHeaderKeys(cmd)
         if self.timecards is None:
             self.timecards = timecards.TimeCards()
-            
+
         self._setExposureState('reading', cmd=cmd)
         if expTime is None:
             self.expTime = time.time() - self.startTime
@@ -437,7 +442,7 @@ class Exposure(object):
         """
         self.logger.info('creating fits file: %s', filepath)
         cmd.debug('text="creating fits file %s' % (filepath))
-        
+
         cards = []
         if comment is not None:
             cards.append(dict(name='comment', value=comment))
@@ -459,9 +464,9 @@ class Exposure(object):
             cmd.warn('text="failed to write fits file %s: %s"' % (filepath, e))
             self.logger.warn('failed to write fits file %s: %s', filepath, e)
             self.logger.warn('hdr : %s', hdr)
-        
+
         return filepath
-        
+
     def _grabInternalCards(self):
         cards = []
 
@@ -630,6 +635,58 @@ class Exposure(object):
 
         return allCards
 
+    def genDcbLampCards(self, cmd):
+        """Generate header cards for dcb lamps.
+        Lamp are described by off/on timestamp that accurately track when the lamp switch state.
+        The principle is that from those two timestamps and the shutter opening/closing time, you can infer the state
+        and how long the lamp was actually used during the exposure.
+        """
+
+        def inferLampStateAndTime(lampKey):
+            """Translate on/off timestamp to lamp state and duration"""
+            __, offIsoTime, onIsoTime = dcbModel.keyVarDict[lampKey].getValue()
+            # converting all time to comparable floats.
+            shutterOpenTime = pfsTime.Time.fromisoformat(self.obstime).timestamp()
+            shutterCloseTime = pfsTime.timestamp()
+            offTime = pfsTime.Time.fromisoformat(offIsoTime).timestamp()
+            onTime = pfsTime.Time.fromisoformat(onIsoTime).timestamp()
+
+            offTime = shutterCloseTime if offTime < onTime else offTime
+            start = min(max(onTime, shutterOpenTime), shutterCloseTime)
+            end = max(min(offTime, shutterCloseTime), shutterOpenTime)
+
+            # lampTime cannot be greater than expTime.
+            lampTime = min(self.expTime, int(round(end - start)))
+            lampState = lampTime > 0
+
+            return lampState, lampTime
+
+        lampCards = []
+        lightSource = self.getLightSource(cmd)
+
+        if lightSource in {'dcb', 'dcb2'}:
+            try:
+                dcbModel = self.actor.models[lightSource]
+            except Exception as e:
+                cmd.warn(f'text="failed to get {lightSource} model, no lampCard could be retrieved : {e}"')
+                return lampCards
+
+            for key, lampStateKey, lampTimeKey in [('halogen', 'W_AITQTH', 'W_CLQTHT'),
+                                                   ('neon', 'W_AITNEO', 'W_CLNEOT'),
+                                                   ('hgar', 'W_AITHGA', 'W_CLHGAT'),
+                                                   ('krypton', 'W_AITKRY', 'W_CLKRYT'),
+                                                   ('argon', 'W_AITARG', 'W_CLARGT'),
+                                                   ('xenon', 'W_AITXEN', 'W_CLXENT')]:
+
+                try:
+                    lampState, lampTime = inferLampStateAndTime(key)
+                    lampCards.append(dict(name=lampStateKey, value=lampState, comment=f'{key.upper()} lamp state'))
+                    lampCards.append(dict(name=lampTimeKey, value=lampTime, comment=f'[s] {key.upper()} lamp on time'))
+                except Exception as e:
+                    cmd.warn(f'text="failed to get {lightSource}.{key} key :{e}"')
+
+        return lampCards
+
     def genSpectroCards(self, cmd):
         """Return the Subaru-specific spectroscopy cards.
 
@@ -721,6 +778,7 @@ class Exposure(object):
             detId = -1
 
         beamConfigCards = self.genBeamConfigCards(cmd, visit)
+        lampCards = self.genDcbLampCards(cmd)
         spectroCards = self.genSpectroCards(cmd)
         designCards = self.genPfsDesignCards(cmd)
         endCards = self.genEndInstCards(cmd)
@@ -755,5 +813,6 @@ class Exposure(object):
         allCards.extend(self.headerCards)
         allCards.extend(self._grabLastFeeCards(cmd))
         allCards.extend(beamConfigCards)
+        allCards.extend(lampCards)
 
         self.headerCards = allCards
