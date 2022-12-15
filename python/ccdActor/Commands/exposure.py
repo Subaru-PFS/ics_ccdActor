@@ -715,11 +715,13 @@ class Exposure(object):
 
         return lightSource.lower()
 
-    def genPfsDesignCards(self, cmd):
+    def genPfsDesignCards(self, cmd, imtype):
         """Return the pfsDesign-associated cards.
 
-        For now, switch between the DCB and SuNSS cards. Use the sps.lightSources key
-        to tell us which to use. THIS IS NOT THE FINAL PFS SOLUTION.
+        Knows about PFI, DCB and SuNSS cards. Uses the sps.lightSources key
+        to tell us which to use.
+
+        Manually sets the OBJECT card if the lightSource is not the PFI.
 
         """
 
@@ -728,6 +730,7 @@ class Exposure(object):
         lightSource = self.getLightSource(cmd)
         if lightSource == 'sunss':
             designId = 0xdeadbeef
+            objectCard = 'SuNSS'
         elif lightSource == 'pfi':
             try:
                 model = self.actor.models['iic'].keyVarDict
@@ -735,6 +738,8 @@ class Exposure(object):
             except Exception as e:
                 cmd.warn(f'text="failed to get designId for {lightSource}: {e}"')
                 designId = 9998
+            # Let the gen2 keyword stay
+            objectCard = None
         elif lightSource in {'dcb', 'dcb2'}:
             try:
                 model = self.actor.models[lightSource].keyVarDict
@@ -742,12 +747,20 @@ class Exposure(object):
             except Exception as e:
                 cmd.warn(f'text="failed to get designId for {lightSource}: {e}"')
                 designId = 9998
+            objectCard = f'{lightSource}'
         else:
             cmd.warn(f'text="unknown lightsource ({lightSource}) for a designId')
             designId = 9999
+            objectCard = 'unknown'
 
-        cards.append(dict(name='W_PFDSGN', value=designId, comment=f'pfsDesign, from {lightSource}'))
-        cards.append(dict(name='W_LGTSRC', value=lightSource, comment='Light source for this module'))
+        # Completely overwrite the OBJECT card if we do not open the shutter. [ I disagree with this choice. ]
+        if imtype in {'BIAS', 'DARK'}:
+            objectCard = imtype
+
+        if objectCard is not None:
+            cards.append(dict(name='OBJECT', value=objectCard, comment='Internal id for this light source'))
+        cards.append(dict(name='W_PFDSGN', value=int(designId), comment=f'pfsDesign, from {lightSource}'))
+        cards.append(dict(name='W_LGTSRC', value=str(lightSource), comment='Light source for this module'))
         return cards
 
     def finishHeaderKeys(self, cmd, visit):
@@ -780,7 +793,7 @@ class Exposure(object):
         beamConfigCards = self.genBeamConfigCards(cmd, visit)
         lampCards = self.genDcbLampCards(cmd)
         spectroCards = self.genSpectroCards(cmd)
-        designCards = self.genPfsDesignCards(cmd)
+        designCards = self.genPfsDesignCards(cmd, imtype)
         endCards = self.genEndInstCards(cmd)
 
         darkTime = np.round(float(max(self.expTime, self.darkTime)), 3)
