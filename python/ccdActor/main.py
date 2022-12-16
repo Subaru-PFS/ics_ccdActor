@@ -12,7 +12,7 @@ from twisted.internet import reactor
 
 class OurActor(actorcore.ICC.ICC):
     def __init__(self, name=None, site=None,
-                 productName=None, configFile=None,
+                 productName=None,
                  logLevel=30):
 
         """ Setup an Actor instance. See help for actorcore.Actor for details. """
@@ -30,10 +30,13 @@ class OurActor(actorcore.ICC.ICC):
         # This sets up the connections to/from the hub, the logger, and the twisted reactor.
         #
 
-        actorcore.ICC.ICC.__init__(self, name,
-                                   productName=productName,
-                                   configFile=configFile,
-                                   idDict=self.ids.idDict)
+        try:
+            actorcore.ICC.ICC.__init__(self, name,
+                                       productName=productName,
+                                       idDict=self.ids.idDict)
+        except Exception as e:
+            print(f'ICC initialization failed: {e}')
+            print(f'   actorConfig: {self.actorConfig}')
         self.logger.setLevel(logLevel)
         self.logger.info(f'actorConfig: {self.actorConfig}')
         self.everConnected = False
