@@ -9,7 +9,8 @@ import numpy as np
 
 import fitsio
 from ics.utils.fits import wcs
-from ics.utils.fits import mhs as fitsUtils
+from ics.utils.fits import mhs as fitsMhs
+from ics.utils.fits import utils as fitsUtils
 from ics.utils.fits import timecards
 from ics.utils.sps import fits as spsFits
 import ics.utils.time as pfsTime
@@ -17,6 +18,7 @@ from opscore.utility.qstr import qstr
 import fpga.ccdFuncs as ccdFuncs
 import ccdActor.utils.basicQA as basicQA
 
+reload(fitsMhs)
 reload(fitsUtils)
 reload(spsFits)
 reload(pfsTime)
@@ -485,8 +487,8 @@ class Exposure(object):
         if 'dcb2' in modelNames:
             modelNames.remove('dcb2')
         cmd.debug(f'text="fetching MHS cards from {modelNames}"')
-        cards = fitsUtils.gatherHeaderCards(cmd, self.actor,
-                                            modelNames=modelNames,shortNames=True)
+        cards = fitsMhs.gatherHeaderCards(cmd, self.actor,
+                                          modelNames=modelNames,shortNames=True)
         cmd.debug('text="fetched %d MHS cards..."' % (len(cards)))
 
         return cards
@@ -502,8 +504,8 @@ class Exposure(object):
             else:
                 modelNames = [lightSource]
             cmd.debug(f'text="fetching ending MHS cards from {modelNames}"')
-            cards = fitsUtils.gatherHeaderCards(cmd, self.actor,
-                                                modelNames=modelNames,shortNames=True)
+            cards = fitsMhs.gatherHeaderCards(cmd, self.actor,
+                                              modelNames=modelNames,shortNames=True)
             cmd.debug('text="fetched %d ending MHS cards..."' % (len(cards)))
         except Exception as e:
             cmd.warn(f'text="failed to fetch ending cards: {e}"')
@@ -539,9 +541,9 @@ class Exposure(object):
     def _grabLastFeeCards(self, cmd):
         cards = []
         try:
-            cards = fitsUtils.gatherHeaderCards(cmd, self.actor,
-                                                modelNames=[self.actor.ccdModelName],
-                                                shortNames=True)
+            cards = fitsMhs.gatherHeaderCards(cmd, self.actor,
+                                              modelNames=[self.actor.ccdModelName],
+                                              shortNames=True)
         except Exception as e:
             cmd.warn(f'text="could not gather ccdModel cards: {e}"')
             return cards
@@ -706,6 +708,11 @@ class Exposure(object):
         """Return our lightsource (pfi, sunss, dcb, dcb2). """
 
         sm = self.actor.ids.specNum
+        if sm > 4: # JHU test cryostats
+            lightSource = self.actor.actorConfig.get('hackLightSource', None)
+            if lightSource is not None:
+                cmd.warn(f'text="HACK lightsource: {lightSource}"')
+                return lightSource.lower()
         try:
             spsModel = self.actor.models['sps'].keyVarDict
             lightSource = spsModel[f'sm{sm}LightSource'].getValue()
@@ -715,11 +722,13 @@ class Exposure(object):
 
         return lightSource.lower()
 
-    def genPfsDesignCards(self, cmd):
+    def genPfsDesignCards(self, cmd, imtype):
         """Return the pfsDesign-associated cards.
 
-        For now, switch between the DCB and SuNSS cards. Use the sps.lightSources key
-        to tell us which to use. THIS IS NOT THE FINAL PFS SOLUTION.
+        Knows about PFI, DCB and SuNSS cards. Uses the sps.lightSources key
+        to tell us which to use.
+
+        Manually sets the OBJECT card if the lightSource is not the PFI.
 
         """
 
@@ -728,6 +737,7 @@ class Exposure(object):
         lightSource = self.getLightSource(cmd)
         if lightSource == 'sunss':
             designId = 0xdeadbeef
+            objectCard = 'SuNSS'
         elif lightSource == 'pfi':
             try:
                 model = self.actor.models['iic'].keyVarDict
@@ -735,6 +745,8 @@ class Exposure(object):
             except Exception as e:
                 cmd.warn(f'text="failed to get designId for {lightSource}: {e}"')
                 designId = 9998
+            # Let the gen2 keyword stay
+            objectCard = None
         elif lightSource in {'dcb', 'dcb2'}:
             try:
                 model = self.actor.models[lightSource].keyVarDict
@@ -742,12 +754,20 @@ class Exposure(object):
             except Exception as e:
                 cmd.warn(f'text="failed to get designId for {lightSource}: {e}"')
                 designId = 9998
+            objectCard = f'{lightSource}'
         else:
             cmd.warn(f'text="unknown lightsource ({lightSource}) for a designId')
             designId = 9999
+            objectCard = 'unknown'
 
-        cards.append(dict(name='W_PFDSGN', value=designId, comment=f'pfsDesign, from {lightSource}'))
-        cards.append(dict(name='W_LGTSRC', value=lightSource, comment='Light source for this module'))
+        # Completely overwrite the OBJECT card if we do not open the shutter.
+        if imtype in {'BIAS', 'DARK'}:
+            objectCard = 'dark'
+
+        if objectCard is not None:
+            cards.append(dict(name='OBJECT', value=objectCard, comment='Internal id for this light source'))
+        cards.append(dict(name='W_PFDSGN', value=int(designId), comment=f'pfsDesign, from {lightSource}'))
+        cards.append(dict(name='W_LGTSRC', value=str(lightSource), comment='Light source for this module'))
         return cards
 
     def finishHeaderKeys(self, cmd, visit):
@@ -780,14 +800,18 @@ class Exposure(object):
         beamConfigCards = self.genBeamConfigCards(cmd, visit)
         lampCards = self.genDcbLampCards(cmd)
         spectroCards = self.genSpectroCards(cmd)
-        designCards = self.genPfsDesignCards(cmd)
+        designCards = self.genPfsDesignCards(cmd, imtype)
         endCards = self.genEndInstCards(cmd)
 
         darkTime = np.round(float(max(self.expTime, self.darkTime)), 3)
 
+        # We might be overriding the Subaru/gen2 OBJECT.
+        fitsUtils.moveCard(designCards, self.headerCards, 'OBJECT')
+
         allCards = []
         allCards.append(dict(name='DATA-TYP', value=imtype, comment='Subaru-style exposure type'))
-        allCards.append(dict(name='FRAMEID', value=f'PFSA{visit:06d}00', comment='Sequence number in archive'))
+        allCards.append(dict(name='FRAMEID', value=f'PFSA{visit:06d}00',
+                             comment='Sequence number in archive'))
         allCards.append(dict(name='EXP-ID', value=f'PFSE00{visit:06d}', comment='PFS exposure visit number'))
         allCards.append(dict(name='DETECTOR', value=detectorId, comment='Name of the detector/CCD'))
         allCards.append(dict(name='GAIN', value=gain, comment='[e-/ADU] AD conversion factor'))
@@ -797,9 +821,12 @@ class Exposure(object):
         allCards.append(dict(name='COMMENT', value='################################ PFS main IDs'))
 
         allCards.append(dict(name='W_VISIT', value=visit, comment='PFS exposure visit number'))
-        allCards.append(dict(name='W_ARM', value=self.armNum(cmd), comment='Spectrograph arm 1=b, 2=r, 3=n, 4=medRed'))
-        allCards.append(dict(name='W_SPMOD', value=self.actor.ids.specNum, comment='Spectrograph module. 1-4 at Subaru'))
-        allCards.append(dict(name='W_SITE', value=self.actor.ids.site, comment='PFS DAQ location: Subaru, Jhu, Lam, Asiaa'))
+        allCards.append(dict(name='W_ARM', value=self.armNum(cmd),
+                             comment='Spectrograph arm 1=b, 2=r, 3=n, 4=medRed'))
+        allCards.append(dict(name='W_SPMOD', value=self.actor.ids.specNum,
+                             comment='Spectrograph module. 1-4 at Subaru'))
+        allCards.append(dict(name='W_SITE', value=self.actor.ids.site,
+                             comment='PFS DAQ location: Subaru, Jhu, Lam, Asiaa'))
         allCards.extend(designCards)
 
         allCards.append(dict(name='COMMENT', value='################################ Time cards'))
