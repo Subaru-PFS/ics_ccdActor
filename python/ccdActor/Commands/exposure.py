@@ -9,7 +9,8 @@ import numpy as np
 
 import fitsio
 from ics.utils.fits import wcs
-from ics.utils.fits import mhs as fitsUtils
+from ics.utils.fits import mhs as fitsMhs
+from ics.utils.fits import utils as fitsUtils
 from ics.utils.fits import timecards
 from ics.utils.sps import fits as spsFits
 import ics.utils.time as pfsTime
@@ -17,6 +18,7 @@ from opscore.utility.qstr import qstr
 import fpga.ccdFuncs as ccdFuncs
 import ccdActor.utils.basicQA as basicQA
 
+reload(fitsMhs)
 reload(fitsUtils)
 reload(spsFits)
 reload(pfsTime)
@@ -485,8 +487,8 @@ class Exposure(object):
         if 'dcb2' in modelNames:
             modelNames.remove('dcb2')
         cmd.debug(f'text="fetching MHS cards from {modelNames}"')
-        cards = fitsUtils.gatherHeaderCards(cmd, self.actor,
-                                            modelNames=modelNames,shortNames=True)
+        cards = fitsMhs.gatherHeaderCards(cmd, self.actor,
+                                          modelNames=modelNames,shortNames=True)
         cmd.debug('text="fetched %d MHS cards..."' % (len(cards)))
 
         return cards
@@ -502,8 +504,8 @@ class Exposure(object):
             else:
                 modelNames = [lightSource]
             cmd.debug(f'text="fetching ending MHS cards from {modelNames}"')
-            cards = fitsUtils.gatherHeaderCards(cmd, self.actor,
-                                                modelNames=modelNames,shortNames=True)
+            cards = fitsMhs.gatherHeaderCards(cmd, self.actor,
+                                              modelNames=modelNames,shortNames=True)
             cmd.debug('text="fetched %d ending MHS cards..."' % (len(cards)))
         except Exception as e:
             cmd.warn(f'text="failed to fetch ending cards: {e}"')
@@ -539,9 +541,9 @@ class Exposure(object):
     def _grabLastFeeCards(self, cmd):
         cards = []
         try:
-            cards = fitsUtils.gatherHeaderCards(cmd, self.actor,
-                                                modelNames=[self.actor.ccdModelName],
-                                                shortNames=True)
+            cards = fitsMhs.gatherHeaderCards(cmd, self.actor,
+                                              modelNames=[self.actor.ccdModelName],
+                                              shortNames=True)
         except Exception as e:
             cmd.warn(f'text="could not gather ccdModel cards: {e}"')
             return cards
@@ -706,6 +708,11 @@ class Exposure(object):
         """Return our lightsource (pfi, sunss, dcb, dcb2). """
 
         sm = self.actor.ids.specNum
+        if sm > 4: # JHU test cryostats
+            lightSource = self.actor.actorConfig.get('hackLightSource', None)
+            if lightSource is not None:
+                cmd.warn(f'text="HACK lightsource: {lightSource}"')
+                return lightSource.lower()
         try:
             spsModel = self.actor.models['sps'].keyVarDict
             lightSource = spsModel[f'sm{sm}LightSource'].getValue()
@@ -753,9 +760,9 @@ class Exposure(object):
             designId = 9999
             objectCard = 'unknown'
 
-        # Completely overwrite the OBJECT card if we do not open the shutter. [ I disagree with this choice. ]
+        # Completely overwrite the OBJECT card if we do not open the shutter.
         if imtype in {'BIAS', 'DARK'}:
-            objectCard = imtype
+            objectCard = 'dark'
 
         if objectCard is not None:
             cards.append(dict(name='OBJECT', value=objectCard, comment='Internal id for this light source'))
@@ -797,6 +804,9 @@ class Exposure(object):
         endCards = self.genEndInstCards(cmd)
 
         darkTime = np.round(float(max(self.expTime, self.darkTime)), 3)
+
+        # We might be overriding the Subaru/gen2 OBJECT.
+        fitsUtils.moveCard(designCards, self.headerCards, 'OBJECT')
 
         allCards = []
         allCards.append(dict(name='DATA-TYP', value=imtype, comment='Subaru-style exposure type'))
