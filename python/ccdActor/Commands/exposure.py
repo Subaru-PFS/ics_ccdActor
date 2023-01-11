@@ -735,30 +735,24 @@ class Exposure(object):
         cards = []
 
         lightSource = self.getLightSource(cmd)
+
         if lightSource == 'sunss':
-            designId = 0xdeadbeef
             objectCard = 'SuNSS'
         elif lightSource == 'pfi':
-            try:
-                model = self.actor.models['iic'].keyVarDict
-                designId = model['designId'].getValue()
-            except Exception as e:
-                cmd.warn(f'text="failed to get designId for {lightSource}: {e}"')
-                designId = 9998
             # Let the gen2 keyword stay
             objectCard = None
         elif lightSource in {'dcb', 'dcb2'}:
-            try:
-                model = self.actor.models[lightSource].keyVarDict
-                designId = model['designId'].getValue()
-            except Exception as e:
-                cmd.warn(f'text="failed to get designId for {lightSource}: {e}"')
-                designId = 9998
             objectCard = f'{lightSource}'
         else:
             cmd.warn(f'text="unknown lightsource ({lightSource}) for a designId')
-            designId = 9999
             objectCard = 'unknown'
+
+        try:
+            model = self.actor.models['iic'].keyVarDict
+            designId = model['designId'].getValue()
+        except Exception as e:
+            cmd.warn(f'text="failed to get designId for {lightSource}: {e}"')
+            designId = 9998
 
         # Completely overwrite the OBJECT card if we do not open the shutter.
         if imtype in {'BIAS', 'DARK'}:
@@ -766,6 +760,7 @@ class Exposure(object):
 
         if objectCard is not None:
             cards.append(dict(name='OBJECT', value=objectCard, comment='Internal id for this light source'))
+
         cards.append(dict(name='W_PFDSGN', value=int(designId), comment=f'pfsDesign, from {lightSource}'))
         cards.append(dict(name='W_LGTSRC', value=str(lightSource), comment='Light source for this module'))
         return cards
