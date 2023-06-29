@@ -193,7 +193,6 @@ class FeeCmd(object):
     def download(self, cmd):
         """ Download firmware. """
 
-        fee = self.actor.fee
         path = cmd.cmd.keywords['pathname'].values[0]
 
         if not os.path.exists(path):
@@ -203,7 +202,12 @@ class FeeCmd(object):
             cmd.fail('text="firmware file must be a .hex file (%s)"' % (path))
             return
 
-        fee.sendImage(path, sendReset=False, doWait=False)
+        import xcu_fpga.fee.feeControl as feeControl
+        reload(feeControl)
+
+        fee = feeControl.FeeControl(noPowerup=True)
+        cmd.inform('text="starting FEE bootloader"')
+        fee.sendImage(path, sendReboot=False, doWait=True, charAtATime=True)
         keys = self.actor.fee.sendCommandStr('gr')
         self._status(cmd, keys)
         
@@ -224,7 +228,8 @@ class FeeCmd(object):
             cmd.fail('text="firmware file must be a .hex file (%s)"' % (path))
             return
 
-        feeControl.FeeControl(sendImage=path)
+        fee = feeControl.FeeControl(noPowerup=True)
+        fee.sendImage(path)
 
         cmd.finish('')
 
