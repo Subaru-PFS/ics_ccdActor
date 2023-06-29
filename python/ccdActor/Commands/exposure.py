@@ -336,16 +336,19 @@ class Exposure(object):
                 cmd.inform('text="header card: %s"' % (str(c)))
 
         if im is not None:
-            # proceed with crude serial overscan check.
-            overscan = basicQA.serialOverscanStats(im, readRows=(row0, row0+nrows))
+            try:
+                # proceed with crude serial overscan check.
+                overscan = basicQA.serialOverscanStats(im, readRows=(row0, row0+nrows))
 
-            # generate keywords.
-            cmd.inform(f"overscanLevels={','.join(map(str, overscan.level.round(3)))}")
-            cmd.inform(f"overscanNoise={','.join(map(str, overscan.noise.round(3)))}")
+                # generate keywords.
+                cmd.inform(f"overscanLevels={','.join(map(str, overscan.level.round(3)))}")
+                cmd.inform(f"overscanNoise={','.join(map(str, overscan.noise.round(3)))}")
 
-            # ensure overscans level/noise are compliants.
-            status = basicQA.ensureOverscansAreInRange(overscan, self.actor.actorConfig['amplifiers'])
-            cmd.inform(f'visitQA={visit},{qstr(status)}')
+                # ensure overscans level/noise are compliants.
+                status = basicQA.ensureOverscansAreInRange(overscan, self.actor.actorConfig['amplifiers'])
+                cmd.inform(f'visitQA={visit},{qstr(status)}')
+            except Exception as e:
+                cmd.warn(f'text="failed to run QA checks: {e}"')
 
         filepath = pathlib.Path(filepath)
         filename = filepath.name
