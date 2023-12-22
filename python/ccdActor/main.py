@@ -38,6 +38,7 @@ class OurActor(actorcore.ICC.ICC):
             print(f'ICC initialization failed: {e}')
             print(f'   actorConfig: {self.actorConfig}')
         self.logger.setLevel(logLevel)
+        logging.getLogger('cmdr').setLevel(20)
         self.logger.info(f'actorConfig: {self.actorConfig}')
         self.everConnected = False
 
