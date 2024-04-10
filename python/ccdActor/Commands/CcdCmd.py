@@ -34,7 +34,8 @@ class CcdCmd(object):
             ('wipe', '[<nrows>] [<ncols>] [@fast]', self.wipe),
             ('read',
              '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] '
-             '[<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff] [@fast] [<row0>]',
+             '[<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff] [@fast] [<row0>] '
+             '[<pfsDesign>]',
              self.read),
             ('erase', '', self.erase),
             ('clock','[<nrows>] <ncols>', self.clock),
@@ -89,6 +90,9 @@ class CcdCmd(object):
                                                  help="signals to turn off"),
                                         keys.Key("row0", types.Int(),
                                                  help='first row of band to read'),
+                                        keys.Key("pfsDesign",
+                                                 types.Long(), types.String(),
+                                                 help='the pfsDesignId and name to use'),
         )
 
         self.exposureState = 'idle'
@@ -247,6 +251,7 @@ class CcdCmd(object):
         obstime = cmdKeys['obstime'].values[0] if 'obstime' in cmdKeys else None
         darktime = cmdKeys['darktime'].values[0] if 'darktime' in cmdKeys else None
         visit = cmdKeys['visit'].values[0] if 'visit' in cmdKeys else None
+        pfsDesign = cmdKeys['pfsDesign'].values if 'pfsDesign' in cmdKeys else None
         swOffTweak = 'swoff' in cmdKeys
         fast = 'fast' in cmdKeys
 
@@ -276,6 +281,7 @@ class CcdCmd(object):
                     visit=visit, obstime=obstime,
                     nrows=nrows, ncols=ncols, row0=row0,
                     doFeeCards=doFeeCards, doModes=doModes,
+                    pfsDesign=pfsDesign,
                     comment=comment, doRun=doRun, fast=fast, cmd=cmd)
 
         if row0 > 0:
