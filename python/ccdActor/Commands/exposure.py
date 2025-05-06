@@ -251,7 +251,7 @@ class Exposure(object):
 
     def readout(self, imtype=None, expTime=None, darkTime=None,
                 visit=None, obstime=None, comment='',
-                pfsDesign=None,
+                pfsDesign=None, metadata=None,
                 doFeeCards=True, doModes=True, fast=False,
                 nrows=None, ncols=None, row0=0,
                 cmd=None, doRun=True):
@@ -329,7 +329,8 @@ class Exposure(object):
                                 comment='last row in readout window'))
 
             finalCards = self.finishHeaderKeys(cmd, visit, extraCards=addCards,
-                                               pfsDesign=pfsDesign)
+                                               pfsDesign=pfsDesign,
+                                               metadata=metadata)
 
             self.writeImageFile(im, filepath, visit, cards=finalCards,
                                 comment=self.comment, cmd=cmd)
@@ -528,12 +529,15 @@ class Exposure(object):
 
         return timecards
 
-    def finishHeaderKeys(self, cmd, visit, extraCards=None, pfsDesign=None):
+    def finishHeaderKeys(self, cmd, visit, extraCards=None,
+                         pfsDesign=None, metadata=None):
         timecards = self.getFinalTimecards(cmd)
 
-        allCards = self.header.finishHeaderKeys(cmd, visit, timeCards=timecards, 
+        allCards = self.header.finishHeaderKeys(cmd, visit,
+                                                timeCards=timecards,
                                                 extraCards=extraCards,
                                                 exptype=self.imtype, gain=1.3,
-                                                pfsDesign=pfsDesign)
+                                                pfsDesign=pfsDesign,
+                                                metadata=metadata)
         allCards.extend(self._grabLastFeeCards(cmd))
         return allCards
