@@ -35,7 +35,7 @@ class CcdCmd(object):
             ('read',
              '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] '
              '[<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff] [@fast] [<row0>] '
-             '[<pfsDesign>]',
+             '[<pfsDesign>] [<metadata>]',
              self.read),
             ('erase', '', self.erase),
             ('clock','[<nrows>] <ncols>', self.clock),
@@ -93,7 +93,11 @@ class CcdCmd(object):
                                         keys.Key("pfsDesign",
                                                  types.Long(), types.String(),
                                                  help='the pfsDesignId and name to use'),
-        )
+                                        keys.Key("metadata",
+                                                 types.Int()*3,
+                                                 types.String()*4,
+                                                 help='header stuffers from iic and gen2'),
+                                        )
 
         self.exposureState = 'idle'
         self.nrows = None
@@ -252,6 +256,7 @@ class CcdCmd(object):
         darktime = cmdKeys['darktime'].values[0] if 'darktime' in cmdKeys else None
         visit = cmdKeys['visit'].values[0] if 'visit' in cmdKeys else None
         pfsDesign = cmdKeys['pfsDesign'].values if 'pfsDesign' in cmdKeys else None
+        metadata = cmdKeys['metadata'].values if 'metadata' in cmdKeys else None
         swOffTweak = 'swoff' in cmdKeys
         fast = 'fast' in cmdKeys
 
@@ -281,7 +286,7 @@ class CcdCmd(object):
                     visit=visit, obstime=obstime,
                     nrows=nrows, ncols=ncols, row0=row0,
                     doFeeCards=doFeeCards, doModes=doModes,
-                    pfsDesign=pfsDesign,
+                    pfsDesign=pfsDesign, metadata=metadata,
                     comment=comment, doRun=doRun, fast=fast, cmd=cmd)
 
         if row0 > 0:
