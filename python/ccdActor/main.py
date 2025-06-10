@@ -37,6 +37,7 @@ class OurActor(actorcore.ICC.ICC):
         except Exception as e:
             print(f'ICC initialization failed: {e}')
             print(f'   actorConfig: {self.actorConfig}')
+            raise
         self.logger.setLevel(logLevel)
         logging.getLogger('cmdr').setLevel(20)
         self.logger.info(f'actorConfig: {self.actorConfig}')

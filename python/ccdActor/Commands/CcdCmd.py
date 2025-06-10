@@ -35,7 +35,7 @@ class CcdCmd(object):
             ('read',
              '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] '
              '[<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff] [@fast] [<row0>] '
-             '[<pfsDesign>] [<metadata>]',
+             '[<pfsDesign>] [<metadata>] [<rowbin>]',
              self.read),
             ('erase', '', self.erase),
             ('clock','[<nrows>] <ncols>', self.clock),
@@ -90,6 +90,8 @@ class CcdCmd(object):
                                                  help="signals to turn off"),
                                         keys.Key("row0", types.Int(),
                                                  help='first row of band to read'),
+                                        keys.Key("rowbin", types.Int(),
+                                                 help='row binning'),
                                         keys.Key("pfsDesign",
                                                  types.Long(), types.String(),
                                                  help='the pfsDesignId and name to use'),
@@ -260,6 +262,8 @@ class CcdCmd(object):
         swOffTweak = 'swoff' in cmdKeys
         fast = 'fast' in cmdKeys
 
+        rowBinning = cmdKeys['rowbin'].values[0] if 'rowbin' in cmdKeys else 1
+
         try:
             exp = self._getExposure(cmd)
         except exposure.NoExposureIsActive:
@@ -285,6 +289,7 @@ class CcdCmd(object):
         exp.readout(imtype, exptime, darkTime=darktime,
                     visit=visit, obstime=obstime,
                     nrows=nrows, ncols=ncols, row0=row0,
+                    rowBinning=rowBinning,
                     doFeeCards=doFeeCards, doModes=doModes,
                     pfsDesign=pfsDesign, metadata=metadata,
                     comment=comment, doRun=doRun, fast=fast, cmd=cmd)

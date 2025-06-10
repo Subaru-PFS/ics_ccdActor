@@ -254,6 +254,7 @@ class Exposure(object):
                 pfsDesign=None, metadata=None,
                 doFeeCards=True, doModes=True, fast=False,
                 nrows=None, ncols=None, row0=0,
+                rowBinning=1,
                 cmd=None, doRun=True):
         if imtype is not None:
             self.imtype = imtype
@@ -309,6 +310,7 @@ class Exposure(object):
                                      darkTime=self.darkTime,
                                      ccd=self.ccd, feeControl=self.fee,
                                      nrows=nrows, ncols=ncols,
+                                     rowBinning=rowBinning,
                                      doFeeCards=False, doModes=doModes,
                                      comment=self.comment,
                                      doSave=False,
@@ -327,6 +329,8 @@ class Exposure(object):
                                 comment='first row of readout window'))
             addCards.append(dict(name='W_CDROWN', value=row0+nrows-1,
                                 comment='last row in readout window'))
+            addCards.append(dict(name='W_CDRBIN', value=rowBinning,
+                                comment='row binning'))
 
             finalCards = self.finishHeaderKeys(cmd, visit, extraCards=addCards,
                                                pfsDesign=pfsDesign,
