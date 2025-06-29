@@ -8,7 +8,7 @@ import threading
 import numpy as np
 
 import fitsio
-from ics.utils.fits import wcs
+from ics.utils import pfsIERS   # noqa: F401
 from ics.utils.fits import mhs as fitsMhs
 from ics.utils.fits import utils as fitsUtils
 from ics.utils.fits import timecards
@@ -168,7 +168,7 @@ class Exposure(object):
             self.startHeader(cmd)
 
     def armNum(self, cmd):
-        """Return the correct arm number: 1, 2, or 4. 
+        """Return the correct arm number: 1, 2, or 4.
 
         For the red cryostats, we have two arm numbers: 2 for low res,
         and 4 for medium res. This number is used (only?) in the
@@ -214,7 +214,7 @@ class Exposure(object):
         return arms[armNum]
 
     def makeFilePath(self, visit, cmd=None):
-        """ Fetch next image filename.
+        """Fetch next image filename.
 
         In real life, we will instantiate a Subaru-compliant image pathname generating object.
 
@@ -321,7 +321,7 @@ class Exposure(object):
                 im = self.placeRows(im, row0)
 
             filepath = self.makeFilePath(visit, cmd)
-            
+
             addCards = []
             addCards.append(dict(name='W_CDROW0', value=row0,
                                 comment='first row of readout window'))
@@ -412,9 +412,9 @@ class Exposure(object):
 
         return im
 
-    def writeImageFile(self, im, filepath, visit, 
+    def writeImageFile(self, im, filepath, visit,
                        cards=None, comment=None, cmd=None):
-        """ Actually write the FITS file. 
+        """Actually write the FITS file.
 
         Args
         ----
@@ -509,7 +509,12 @@ class Exposure(object):
         return cards
 
     def startHeader(self, cmd):
-        """ Start the header. Called right after wipe is finished and integration started. Must not block! """
+        """Start the header.
+
+        Called right after wipe is finished and integration started.
+        Must not block!
+
+        """
 
         if cmd is None:
             cmd = self.cmd
