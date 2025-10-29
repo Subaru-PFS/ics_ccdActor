@@ -50,6 +50,7 @@ class CcdCmd(object):
             ('setClocks', '[<on>] [<off>]', self.setClocks),
             ('holdClocks', '[<on>] [<off>]', self.holdClocks),
             ('setAdcMode', '@(msb|mid|lsb)', self.setAdcMode),
+            ('setRowbin', '<rowbin>', self.setRowbin),
         ]
 
         # Define typed command arguments for the above commands.
@@ -104,7 +105,8 @@ class CcdCmd(object):
         self.exposureState = 'idle'
         self.nrows = None
         self.ncols = None
-
+        self.rowBinning = 1
+        
         self.actor.exposure = None
 
         self.initCallbacks()
@@ -119,6 +121,13 @@ class CcdCmd(object):
     def fee(self):
         return self.actor.fee
 
+    def setRowbin(self, cmd):
+        cmdKeys = cmd.cmd.keywords
+        
+        rowBinning = cmdKeys['rowbin'].values[0] if 'rowbin' in cmdKeys else 1
+        self.rowBinning = rowBinning
+        cmd.finish(f'text="set rowBinning default to {self.rowBinning}')
+        
     def genStatus(self, cmd=None):
         if cmd is None:
             cmd = self.actor.bcast
@@ -263,7 +272,10 @@ class CcdCmd(object):
         fast = 'fast' in cmdKeys
 
         rowBinning = cmdKeys['rowbin'].values[0] if 'rowbin' in cmdKeys else 1
-
+        if self.rowBinning > 1:
+            rowBinning = self.rowBinning
+            cmd.warn(f'text="overriding rowBinning with {self.rowBinning}"')
+        
         try:
             exp = self._getExposure(cmd)
         except exposure.NoExposureIsActive:
