@@ -63,6 +63,7 @@ class Exposure(object):
         self.exposureState = "idle"
         self.logger = logging.getLogger('exposure')
         self.timecards = None
+        self.header = None
         self.headerCards = None
         self.obstime = None
         self.genStatus = self.__instanceGetStatus
@@ -167,60 +168,26 @@ class Exposure(object):
         if nwipes > 0:
             self.startHeader(cmd)
 
-    def armNum(self, cmd):
-        """Return the correct arm number: 1, 2, or 4.
+    def armName(self, armNum):
+        """Map arm number to arm name.
 
-        For the red cryostats, we have two arm numbers: 2 for low res,
-        and 4 for medium res. This number is used (only?) in the
-        filename. Resolve which to use.
+        Args
+        ----
+        armNum : `int`
+           Arm number (must be 1, 2, 3, or 4)
 
-        We _want_ to use the dcbActor rexm keyword. But we also allow
-        manually overriding that from the self.actor.grating
-        variable. That may only ever be used for code testing.
-
+        Returns
+        -------
+        armName : `str`
         """
 
-        if self.actor.ids.arm != 'r':
-            return self.actor.ids.armNum
-        if self.actor.grating != 'real':
-            arms = dict(low=2, med=4)
-            cmd.warn(f'text="using fake grating position {self.actor.grating}"')
-            return arms[self.actor.grating]
-
-        try:
-            rexm = self.actor.enuModel.keyVarDict['rexm'].getValue()
-        except Exception as e:
-            self.logger.warn('failed to get enu grating position: %s', e)
-            cmd.warn('text="failed to get enu grating position: using low"')
-            return 2
-
-        try:
-            # ENU uses "mid", which I think should be changed.
-            arms = dict(low=2, mid=4, med=4)
-            return arms[rexm]
-        except KeyError:
-            cmd.warn(f'text="enu grating position invalid ({rexm}), using low for filename"')
-            return 2
-
-    def arm(self, cmd):
-        """Return the correct arm: 'b', 'r', 'm', 'n'.
-
-        For the red cryostats, we have two arms: 'r' for low res,
-        and 'm' for medium res. See .armNum() for details on how this is resolved.
-
-        """
         arms = {1:'b', 2:'r', 3:'n', 4:'m'}
-        armNum = self.armNum(cmd)
-        return arms[armNum]
+        return arms.get(armNum, 'x')
 
     def makeFilePath(self, visit, cmd=None):
-        """Fetch next image filename.
+        """Construct next image filename. Creates any necessary directories. """
 
-        In real life, we will instantiate a Subaru-compliant image pathname generating object.
-
-        """
-
-        armNum = self.armNum(cmd)
+        armNum = self.header.startingArmNum
         path = self.actor.butler.getPath('spsFile', visit=visit, armNum=armNum)
         cmd.debug(f'text="path for {visit}: {path}"')
         pathDir = path.parent
@@ -286,7 +253,7 @@ class Exposure(object):
 
         if self.exposureState != 'integrating':
             cmd.warn('text="reading out detector in odd state: %s"' % (str(self)))
-        if self.headerCards is None and row0 == 0:
+        if self.header is None:
             self.startHeader(cmd)
         if self.timecards is None:
             self.timecards = timecards.TimeCards()
@@ -336,10 +303,7 @@ class Exposure(object):
                                 comment=self.comment, cmd=cmd)
         else:
             im = None
-            filepath = "/no/such/dir/nosuchfile.fits"
-            #for c in self.headerCards:
-            #    cmd.inform('text="header card: %s"' % (str(c)))
-
+            filepath = "/no/such/dir/PFXA00000099.fits"
         if im is not None:
             try:
                 # proceed with crude serial overscan check.
@@ -359,27 +323,30 @@ class Exposure(object):
             except Exception as e:
                 cmd.warn(f'text="failed to run QA checks: {e}"')
 
+        # The generated filenames encapsulate SPS logic. Extract the
+        # components instead of regenerating them.
         filepath = pathlib.Path(filepath)
         filename = filepath.name
 
-        # This is hideous. Need a proper splitter. Will be acceptable
-        # when we dror filepath and thus the rootDir.
         rootDir = filepath.parents[2]
         dateDir = filepath.parent.parent.name
+
+        filestem = filepath.stem
+        spectrograph = int(filestem[-2])
+        armNum = int(filestem[-1])
+        armName = self.armName(armNum)
+        camName = f'{armName}{spectrograph}'
 
         self._setExposureState('idle', cmd=cmd)
         cmd.inform('filepath=%s,%s,%s' % (qstr(rootDir),
                                           qstr(dateDir),
                                           qstr(filename)))
 
-
-        ids = self.actor.ids.idDict
-        cmd.inform('spsFileIds=%s,%s,%d,%d,%d' % (ids['camName'],
+        cmd.inform('spsFileIds=%s,%s,%d,%d,%d' % (camName,
                                                   qstr(dateDir),
                                                   visit,
-                                                  ids['spectrograph'],
-                                                  self.armNum(cmd)))
-
+                                                  spectrograph,
+                                                  armNum))
         return im, filepath
 
     def fixupImage(self, im, cmd):
