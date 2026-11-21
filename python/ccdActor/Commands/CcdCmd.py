@@ -35,7 +35,7 @@ class CcdCmd(object):
             ('read',
              '[@(bias|dark|flat|arc|object|domeflat|test|junk)] [<nrows>] [<ncols>] [<visit>] '
              '[<exptime>] [<darktime>] [<obstime>] [<comment>] [@nope] [@swoff] [@fast] [<row0>] '
-             '[<pfsDesign>] [<metadata>]',
+             '[<pfsDesign>] [<metadata>] [<rowbin>]',
              self.read),
             ('erase', '', self.erase),
             ('clock','[<nrows>] <ncols>', self.clock),
@@ -50,6 +50,7 @@ class CcdCmd(object):
             ('setClocks', '[<on>] [<off>]', self.setClocks),
             ('holdClocks', '[<on>] [<off>]', self.holdClocks),
             ('setAdcMode', '@(msb|mid|lsb)', self.setAdcMode),
+            ('setRowbin', '<rowbin>', self.setRowbin),
         ]
 
         # Define typed command arguments for the above commands.
@@ -90,6 +91,8 @@ class CcdCmd(object):
                                                  help="signals to turn off"),
                                         keys.Key("row0", types.Int(),
                                                  help='first row of band to read'),
+                                        keys.Key("rowbin", types.Int(),
+                                                 help='row binning'),
                                         keys.Key("pfsDesign",
                                                  types.Long(), types.String(),
                                                  help='the pfsDesignId and name to use'),
@@ -102,7 +105,8 @@ class CcdCmd(object):
         self.exposureState = 'idle'
         self.nrows = None
         self.ncols = None
-
+        self.rowBinning = 1
+        
         self.actor.exposure = None
 
         self.initCallbacks()
@@ -117,6 +121,19 @@ class CcdCmd(object):
     def fee(self):
         return self.actor.fee
 
+    def setRowbin(self, cmd):
+        """ TEMPORARY: set the row binning used by all subsequent reads. """
+
+        cmdKeys = cmd.cmd.keywords
+
+        rowBinning = cmdKeys['rowbin'].values[0]
+        if rowBinning < 1:
+            cmd.fail(f'text="rowbin ({rowBinning}) must be >= 1"')
+            return
+
+        self.rowBinning = rowBinning
+        cmd.finish(f'text="set rowBinning default to {self.rowBinning}"')
+        
     def genStatus(self, cmd=None):
         if cmd is None:
             cmd = self.actor.bcast
@@ -260,6 +277,29 @@ class CcdCmd(object):
         swOffTweak = 'swoff' in cmdKeys
         fast = 'fast' in cmdKeys
 
+        if 'rowbin' in cmdKeys:
+            rowBinning = cmdKeys['rowbin'].values[0]
+            if rowBinning < 1:
+                cmd.fail(f'text="rowbin ({rowBinning}) must be >= 1"')
+                return
+            if 'row0' in cmdKeys or 'nrows' in cmdKeys:
+                cmd.fail('text="rowbin cannot be combined with row0 or nrows"')
+                return
+            # Binned reads are always full-frame: ignore any nrows remembered from
+            # the wipe (e.g. the no-op `wipe nrows=0` used only for its sequencing).
+            nrows = None
+        else:
+            rowBinning = self.rowBinning
+        if rowBinning > 1:
+            cmd.warn(f'text="reading with rowBinning={rowBinning}"')
+            # Binned reads are aligned to the CCD's data region, so cannot be windowed.
+            if row0 > 0:
+                cmd.fail('text="row-binned reads cannot use row0"')
+                return
+            if nrows is not None and nrows <= self.ccd.leadinRows:
+                cmd.fail(f'text="row-binned reads need nrows > {self.ccd.leadinRows}"')
+                return
+        
         try:
             exp = self._getExposure(cmd)
         except exposure.NoExposureIsActive:
@@ -285,6 +325,7 @@ class CcdCmd(object):
         exp.readout(imtype, exptime, darkTime=darktime,
                     visit=visit, obstime=obstime,
                     nrows=nrows, ncols=ncols, row0=row0,
+                    rowBinning=rowBinning,
                     doFeeCards=doFeeCards, doModes=doModes,
                     pfsDesign=pfsDesign, metadata=metadata,
                     comment=comment, doRun=doRun, fast=fast, cmd=cmd)
