@@ -298,6 +298,9 @@ class Exposure(object):
                                 comment='last row in readout window'))
             addCards.append(dict(name='W_CDRBIN', value=rowBinning,
                                 comment='row binning'))
+            addCards.append(dict(name='W_CDRPAR',
+                                 value=float(getattr(self.ccd, 'binnedParPhaseScale', 1)),
+                                 comment='TESTING: binned parallel phase scale'))
 
             finalCards = self.finishHeaderKeys(cmd, visit, extraCards=addCards,
                                                pfsDesign=pfsDesign,

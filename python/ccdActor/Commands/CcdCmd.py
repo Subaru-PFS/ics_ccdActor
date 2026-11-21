@@ -51,6 +51,7 @@ class CcdCmd(object):
             ('holdClocks', '[<on>] [<off>]', self.holdClocks),
             ('setAdcMode', '@(msb|mid|lsb)', self.setAdcMode),
             ('setRowbin', '<rowbin>', self.setRowbin),
+            ('setBinnedParScale', '<parscale>', self.setBinnedParScale),
         ]
 
         # Define typed command arguments for the above commands.
@@ -93,6 +94,8 @@ class CcdCmd(object):
                                                  help='first row of band to read'),
                                         keys.Key("rowbin", types.Int(),
                                                  help='row binning'),
+                                        keys.Key("parscale", types.Float(),
+                                                 help='TESTING: binned parallel phase length scale, >= 1'),
                                         keys.Key("pfsDesign",
                                                  types.Long(), types.String(),
                                                  help='the pfsDesignId and name to use'),
@@ -470,6 +473,20 @@ class CcdCmd(object):
 
         cmd.finish()
         
+    def setBinnedParScale(self, cmd):
+        """ TESTING: lengthen each parallel phase of row-binned reads by parscale (>= 1). """
+
+        cmdKeys = cmd.cmd.keywords
+
+        scale = cmdKeys['parscale'].values[0]
+        try:
+            self.ccd.setBinnedParPhaseScale(scale, cmd=cmd)
+        except ValueError as e:
+            cmd.fail(f'text="{e}"')
+            return
+
+        cmd.finish(f'text="set binned parallel phase scale to {self.ccd.binnedParPhaseScale}"')
+
     def holdClocks(self, cmd):
         """ request that given clock lines always be help on or off """
 
